@@ -49,7 +49,8 @@ export default function StrategyPage() {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: "success", text: "Strategy saved successfully" });
+        setMessage({ type: "success", text: data.message || "Strategy saved successfully" });
+        setTimeout(() => setMessage(null), 4000);
         loadStrategies();
         setActiveTab("list");
       } else {
@@ -57,15 +58,21 @@ export default function StrategyPage() {
           type: "error",
           text: data.error || "Failed to save strategy",
         });
+        setTimeout(() => setMessage(null), 4000);
       }
     } catch (error) {
       setMessage({ type: "error", text: "Error saving strategy" });
+      setTimeout(() => setMessage(null), 4000);
+      console.error("Save strategy error:", error);
     }
   };
 
-  const handleDeleteStrategy = async (strategyName) => {
-    if (strategyName === "Default Strategy") {
+  const handleDeleteStrategy = async (strategyId) => {
+    const strategy = strategies.find(s => s._id === strategyId);
+    
+    if (strategy?.name === "Default Strategy") {
       setMessage({ type: "error", text: "Cannot delete default strategy" });
+      setTimeout(() => setMessage(null), 4000);
       return;
     }
 
@@ -77,14 +84,15 @@ export default function StrategyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "delete",
-          id: strategyName,
+          id: strategyId,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: "success", text: "Strategy deleted successfully" });
+        setMessage({ type: "success", text: data.message || "Strategy deleted successfully" });
+        setTimeout(() => setMessage(null), 4000);
         loadStrategies();
         setSelectedStrategy(null);
       } else {
@@ -92,9 +100,12 @@ export default function StrategyPage() {
           type: "error",
           text: data.error || "Failed to delete strategy",
         });
+        setTimeout(() => setMessage(null), 4000);
       }
     } catch (error) {
       setMessage({ type: "error", text: "Error deleting strategy" });
+      setTimeout(() => setMessage(null), 4000);
+      console.error("Delete strategy error:", error);
     }
   };
 

@@ -1,23 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, Plus, X, ArrowLeft } from "lucide-react";
+import { ChevronDown, Plus, X, ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
   const [config, setConfig] = useState(null);
+  const [globalConfigs, setGlobalConfigs] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const [message, setMessage] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
     age: true,
     rating: false,
     matrix: false,
+    global: false,
   });
 
   useEffect(() => {
     loadConfig();
+    loadGlobalConfigs();
   }, []);
 
   const loadConfig = async () => {
@@ -26,39 +28,124 @@ export default function SettingsPage() {
       const response = await fetch("/api/config");
       const data = await response.json();
       if (data.success) {
-        setConfig(data.data);
+        const strategies = data.data;
+        // Use the first strategy (or default if available)
+        const defaultStrategy =
+          strategies.find((s) => s.name === "Default Strategy") || strategies[0];
+        setConfig(defaultStrategy);
+      } else {
+        setMessage({
+          type: "error",
+          text: data.error || "Failed to load configuration",
+        });
       }
     } catch (err) {
-      setError("Failed to load configuration");
+      setMessage({ type: "error", text: "Failed to load configuration" });
+      console.error("Load config error:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  const loadGlobalConfigs = async () => {
+    try {
+      const response = await fetch("/api/config?type=config");
+      const data = await response.json();
+      if (data.success) {
+        const configMap = {};
+        data.data.forEach((item) => {
+          configMap[item.key] = item.value;
+        });
+        setGlobalConfigs(configMap);
+      }
+    } catch (err) {
+      console.error("Load global configs error:", err);
+    }
+  };
+
   const saveConfig = async () => {
+    if (!config) return;
+
     try {
       setSaving(true);
-      setError(null);
+      setMessage(null);
+
       const response = await fetch("/api/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config }),
+        body: JSON.stringify({
+          action: "save",
+          config: config,
+        }),
       });
+
       const data = await response.json();
+
       if (data.success) {
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 3000);
+        setMessage({
+          type: "success",
+          text: "Configuration saved successfully!",
+        });
+        setTimeout(() => setMessage(null), 4000);
       } else {
-        setError(data.error || "Failed to save configuration");
+        setMessage({
+          type: "error",
+          text: data.error || "Failed to save configuration",
+        });
       }
     } catch (err) {
-      setError(err.message);
+      setMessage({ type: "error", text: "Error saving configuration" });
+      console.error("Save config error:", err);
     } finally {
       setSaving(false);
     }
   };
 
+  const saveGlobalConfig = async (key, value, description, category) => {
+    try {
+      const response = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "saveConfig",
+          configData: {
+            key,
+            value,
+            description,
+            category,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setGlobalConfigs((prev) => ({
+          ...prev,
+          [key]: value,
+        }));
+        setMessage({
+          type: "success",
+          text: `${description} saved successfully!`,
+        });
+        setTimeout(() => setMessage(null), 4000);
+      } else {
+        setMessage({
+          type: "error",
+          text: data.error || "Failed to save configuration",
+        });
+      }
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: `Error saving ${description}`,
+      });
+      console.error("Save global config error:", err);
+    }
+  };
+
   const updateAgeBand = (index, field, value) => {
+    if (!config) return;
     const updated = [...config.age_bands];
     updated[index] = {
       ...updated[index],
@@ -68,6 +155,7 @@ export default function SettingsPage() {
   };
 
   const addAgeBand = () => {
+    if (!config) return;
     const lastBand = config.age_bands[config.age_bands.length - 1];
     const newMin = (lastBand.max || 0) + 1;
     setConfig({
@@ -80,15 +168,15 @@ export default function SettingsPage() {
   };
 
   const removeAgeBand = (index) => {
-    if (config.age_bands.length > 1) {
-      setConfig({
-        ...config,
-        age_bands: config.age_bands.filter((_, i) => i !== index),
-      });
-    }
+    if (!config || config.age_bands.length <= 1) return;
+    setConfig({
+      ...config,
+      age_bands: config.age_bands.filter((_, i) => i !== index),
+    });
   };
 
   const updateRatingBand = (index, field, value) => {
+    if (!config) return;
     const updated = [...config.rating_bands];
     updated[index] = {
       ...updated[index],
@@ -98,6 +186,7 @@ export default function SettingsPage() {
   };
 
   const addRatingBand = () => {
+    if (!config) return;
     setConfig({
       ...config,
       rating_bands: [
@@ -108,15 +197,15 @@ export default function SettingsPage() {
   };
 
   const removeRatingBand = (index) => {
-    if (config.rating_bands.length > 1) {
-      setConfig({
-        ...config,
-        rating_bands: config.rating_bands.filter((_, i) => i !== index),
-      });
-    }
+    if (!config || config.rating_bands.length <= 1) return;
+    setConfig({
+      ...config,
+      rating_bands: config.rating_bands.filter((_, i) => i !== index),
+    });
   };
 
   const updateMatrixValue = (ageBand, ratingBand, value) => {
+    if (!config) return;
     setConfig({
       ...config,
       target_matrix: {
@@ -171,17 +260,233 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-            {error}
+        {message && (
+          <div
+            className={`mb-6 p-4 rounded-lg border transition ${
+              message.type === "success"
+                ? "bg-green-50 border-green-200 text-green-800"
+                : "bg-red-50 border-red-200 text-red-800"
+            }`}
+          >
+            {message.text}
           </div>
         )}
 
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-            Configuration saved successfully!
-          </div>
-        )}
+        {/* Global Configuration Section */}
+        <div className="mb-8 bg-white rounded-lg border border-neutral-200 overflow-hidden">
+          <button
+            onClick={() =>
+              setExpandedSections({
+                ...expandedSections,
+                global: !expandedSections.global,
+              })
+            }
+            className="w-full flex items-center justify-between p-6 hover:bg-neutral-50 transition"
+          >
+            <h2 className="text-lg font-semibold text-neutral-900">
+              Global Settings
+            </h2>
+            <ChevronDown
+              className={`w-5 h-5 text-neutral-600 transition ${
+                expandedSections.global ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {expandedSections.global && (
+            <div className="border-t border-neutral-200 p-6 space-y-6">
+              {/* Tolerance Settings */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6 border-b border-neutral-200">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Tolerance Type
+                  </label>
+                  <select
+                    value={config.tolerance_type || "percent"}
+                    onChange={(e) => {
+                      setConfig({ ...config, tolerance_type: e.target.value });
+                    }}
+                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="percent">Percent (%)</option>
+                    <option value="fixed">Fixed Amount (£)</option>
+                  </select>
+                  <button
+                    onClick={() =>
+                      saveGlobalConfig(
+                        "tolerance_type",
+                        config.tolerance_type,
+                        "Tolerance Type",
+                        "tolerance"
+                      )
+                    }
+                    className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  >
+                    Save
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Tolerance Value
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={config.tolerance_value || 0}
+                    onChange={(e) => {
+                      setConfig({
+                        ...config,
+                        tolerance_value: parseFloat(e.target.value),
+                      });
+                    }}
+                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() =>
+                      saveGlobalConfig(
+                        "tolerance_value",
+                        config.tolerance_value,
+                        "Tolerance Value",
+                        "tolerance"
+                      )
+                    }
+                    className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+
+              {/* Nudge Settings */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6 border-b border-neutral-200">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Nudge Type
+                  </label>
+                  <select
+                    value={config.nudge_type || "percent"}
+                    onChange={(e) => {
+                      setConfig({ ...config, nudge_type: e.target.value });
+                    }}
+                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="percent">Percent (%)</option>
+                    <option value="fixed">Fixed Amount (£)</option>
+                    <option value="auto">Auto</option>
+                  </select>
+                  <button
+                    onClick={() =>
+                      saveGlobalConfig(
+                        "nudge_type",
+                        config.nudge_type,
+                        "Nudge Type",
+                        "nudge"
+                      )
+                    }
+                    className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  >
+                    Save
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Nudge Value
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={config.nudge_value || 0}
+                    onChange={(e) => {
+                      setConfig({
+                        ...config,
+                        nudge_value: parseFloat(e.target.value),
+                      });
+                    }}
+                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() =>
+                      saveGlobalConfig(
+                        "nudge_value",
+                        config.nudge_value,
+                        "Nudge Value",
+                        "nudge"
+                      )
+                    }
+                    className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+
+              {/* Other Settings */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Rounding Mode
+                  </label>
+                  <select
+                    value={config.rounding_mode || "nearest"}
+                    onChange={(e) => {
+                      setConfig({ ...config, rounding_mode: e.target.value });
+                    }}
+                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="exact">Exact</option>
+                    <option value="nearest">Nearest</option>
+                    <option value="49/99">49/99 Pricing</option>
+                  </select>
+                  <button
+                    onClick={() =>
+                      saveGlobalConfig(
+                        "rounding_mode",
+                        config.rounding_mode,
+                        "Rounding Mode",
+                        "system"
+                      )
+                    }
+                    className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  >
+                    Save
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Stale Days Threshold
+                  </label>
+                  <input
+                    type="number"
+                    value={config.stale_days || 7}
+                    onChange={(e) => {
+                      setConfig({
+                        ...config,
+                        stale_days: parseInt(e.target.value),
+                      });
+                    }}
+                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() =>
+                      saveGlobalConfig(
+                        "stale_days",
+                        config.stale_days,
+                        "Stale Days",
+                        "system"
+                      )
+                    }
+                    className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Age Bands Section */}
         <div className="mb-8 bg-white rounded-lg border border-neutral-200 overflow-hidden">
@@ -198,7 +503,9 @@ export default function SettingsPage() {
               Age Bands
             </h2>
             <ChevronDown
-              className={`w-5 h-5 text-neutral-600 transition ${expandedSections.age ? "rotate-180" : ""}`}
+              className={`w-5 h-5 text-neutral-600 transition ${
+                expandedSections.age ? "rotate-180" : ""
+              }`}
             />
           </button>
 
@@ -250,7 +557,7 @@ export default function SettingsPage() {
                           "max",
                           e.target.value === ""
                             ? undefined
-                            : parseInt(e.target.value),
+                            : parseInt(e.target.value)
                         )
                       }
                       placeholder="Leave empty for open-ended"
@@ -294,7 +601,9 @@ export default function SettingsPage() {
               Rating Bands
             </h2>
             <ChevronDown
-              className={`w-5 h-5 text-neutral-600 transition ${expandedSections.rating ? "rotate-180" : ""}`}
+              className={`w-5 h-5 text-neutral-600 transition ${
+                expandedSections.rating ? "rotate-180" : ""
+              }`}
             />
           </button>
 
@@ -346,7 +655,7 @@ export default function SettingsPage() {
                           "max",
                           e.target.value === ""
                             ? undefined
-                            : parseInt(e.target.value),
+                            : parseInt(e.target.value)
                         )
                       }
                       placeholder="Leave empty for open-ended"
@@ -380,8 +689,9 @@ export default function SettingsPage() {
           <button
             onClick={saveConfig}
             disabled={saving}
-            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition"
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition"
           >
+            <Save className="w-4 h-4" />
             {saving ? "Saving..." : "Save Configuration"}
           </button>
           <Link

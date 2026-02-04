@@ -46,6 +46,20 @@ export default function StrategyConfigurator({ strategy, onSave, onCancel }) {
       alert("Strategy name is required");
       return;
     }
+    
+    // Validate age bands
+    const ageBands = config.age_bands || [];
+    if (ageBands.length > 0) {
+      if (ageBands[0].min !== 0) {
+        alert("First age band must start at 0");
+        return;
+      }
+      if (ageBands[ageBands.length - 1].max !== undefined) {
+        alert("Last age band must be open-ended (no maximum)");
+        return;
+      }
+    }
+    
     onSave(config);
   };
 
