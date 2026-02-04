@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Settings } from "lucide-react";
+import { Play, Settings as SettingsIcon } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
-import ConfigPanel from "@/components/ConfigPanel";
 import ProcessingResults from "@/components/ProcessingResults";
 
 export default function Home() {
@@ -13,47 +12,27 @@ export default function Home() {
   const [results, setResults] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [strategies, setStrategies] = useState([]);
-  const [selectedStrategy, setSelectedStrategy] = useState(null);
-  const [loadingStrategies, setLoadingStrategies] = useState(false);
 
   useEffect(() => {
-    loadStrategies();
+    loadConfig();
   }, []);
 
-  const loadStrategies = async () => {
+  const loadConfig = async () => {
     try {
-      setLoadingStrategies(true);
       const response = await fetch("/api/config");
       const data = await response.json();
       if (data.success) {
-        setStrategies(data.data);
-        // Auto-select the first strategy
-        if (data.data.length > 0) {
-          selectStrategy(data.data[0]);
-        }
+        setConfig(data.data);
       }
     } catch (error) {
-      console.error("Failed to load strategies:", error);
-    } finally {
-      setLoadingStrategies(false);
+      console.error("Failed to load configuration:", error);
     }
-  };
-
-  const selectStrategy = (strategy) => {
-    setSelectedStrategy(strategy);
-    setConfig(strategy);
   };
 
   const handleFileUpload = (file) => {
     setUploadedFile(file);
     setError(null);
     setResults(null);
-  };
-
-  const handleConfigSave = (newConfig) => {
-    setConfig(newConfig);
-    setError(null);
   };
 
   const handleProcess = async () => {
@@ -116,52 +95,24 @@ export default function Home() {
     <main className="min-h-screen bg-neutral-50">
       {/* Header */}
       <div className="bg-white border-b border-neutral-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-neutral-900">
+              <h1 className="text-4xl font-bold text-neutral-900">
                 Pricing Engine
               </h1>
               <p className="text-neutral-600 mt-1">
-                Upload CSV files and process with your pricing strategies
+                Upload your stock CSV file and process it with intelligent
+                pricing strategy
               </p>
             </div>
             <Link
-              href="/strategy"
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              href="/settings"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition whitespace-nowrap"
             >
-              <Settings className="w-4 h-4" />
-              Manage Strategies
+              <SettingsIcon className="w-4 h-4" />
+              Configuration
             </Link>
-          </div>
-
-          {/* Strategy Selector */}
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-neutral-700">
-              Select Strategy:
-            </label>
-            <select
-              value={selectedStrategy?.name || ""}
-              onChange={(e) => {
-                const strategy = strategies.find(
-                  (s) => s.name === e.target.value,
-                );
-                if (strategy) selectStrategy(strategy);
-              }}
-              className="px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loadingStrategies}
-            >
-              {strategies.map((strategy) => (
-                <option key={strategy.name} value={strategy.name}>
-                  {strategy.name}
-                </option>
-              ))}
-            </select>
-            {selectedStrategy && (
-              <p className="text-sm text-neutral-600">
-                {selectedStrategy.description}
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -175,24 +126,34 @@ export default function Home() {
         )}
 
         {!results ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="space-y-8">
             {/* Upload Section */}
-            <div className="lg:col-span-1">
+            <div className="max-w-2xl">
               <FileUpload
                 onFileUpload={handleFileUpload}
                 uploadedFile={uploadedFile}
               />
             </div>
 
-            {/* Config Section */}
-            <div className="lg:col-span-2">
-              <ConfigPanel
-                onConfigSave={handleConfigSave}
-                onProcess={handleProcess}
-                isProcessing={isProcessing}
-                readyToProcess={uploadedFile && config}
-              />
-            </div>
+            {/* Process Button */}
+            {uploadedFile && config && (
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleProcess}
+                  disabled={isProcessing}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition"
+                >
+                  <Play className="w-5 h-5" />
+                  {isProcessing ? "Processing..." : "Process File"}
+                </button>
+                {isProcessing && (
+                  <div className="flex items-center gap-2 text-blue-600">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    <span>Processing your file...</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <ProcessingResults

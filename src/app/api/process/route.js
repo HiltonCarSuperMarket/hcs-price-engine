@@ -20,22 +20,38 @@ class PricingEngine {
   }
 
   getAgeBand(ageDays) {
-    for (const bandName of this.config.age_bands) {
-      if (bandName.includes("+")) {
-        try {
-          const minVal = parseInt(bandName.replace("+", ""));
-          if (ageDays >= minVal) return bandName;
-        } catch (e) {}
-      } else if (bandName.includes("-")) {
-        try {
-          const [minStr, maxStr] = bandName.split("-");
-          const minVal = parseInt(minStr);
-          const maxVal = parseInt(maxStr);
-          if (ageDays >= minVal && ageDays <= maxVal) return bandName;
-        } catch (e) {}
+    // Handle both string format (legacy) and object format (new)
+    const ageBands = this.config.age_bands || [];
+
+    for (const band of ageBands) {
+      // New format: object with min/max
+      if (typeof band === "object" && band.name) {
+        const minVal = band.min !== undefined ? band.min : 0;
+        const maxVal = band.max !== undefined ? band.max : Infinity;
+        if (ageDays >= minVal && ageDays <= maxVal) {
+          return band.name;
+        }
+      } else if (typeof band === "string") {
+        // Legacy format: string like "0-15" or "180+"
+        if (band.includes("+")) {
+          try {
+            const minVal = parseInt(band.replace("+", ""));
+            if (ageDays >= minVal) return band;
+          } catch (e) {}
+        } else if (band.includes("-")) {
+          try {
+            const [minStr, maxStr] = band.split("-");
+            const minVal = parseInt(minStr);
+            const maxVal = parseInt(maxStr);
+            if (ageDays >= minVal && ageDays <= maxVal) return band;
+          } catch (e) {}
+        }
       }
     }
-    return this.config.age_bands[this.config.age_bands.length - 1] || "180+";
+
+    // Return the last band's name as default
+    const lastBand = ageBands[ageBands.length - 1];
+    return typeof lastBand === "object" ? lastBand.name : lastBand || "180+";
   }
 
   getRatingBandFromValue(ratingVal) {

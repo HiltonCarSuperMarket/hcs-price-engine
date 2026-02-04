@@ -1,17 +1,14 @@
 import { defaultConfig } from "@/lib/defaultConfig";
 
-// Store configurations in memory (in production, use a database)
-let configs = {
-  default: defaultConfig,
-};
+// Store single configuration in memory (in production, use a database)
+let currentConfig = { ...defaultConfig };
 
 export async function GET() {
   try {
     return new Response(
       JSON.stringify({
         success: true,
-        data: Object.values(configs),
-        current: "default",
+        data: currentConfig,
       }),
       {
         status: 200,
@@ -35,34 +32,54 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { action, config, id } = body;
+    const { config } = body;
 
-    if (action === "save") {
-      // Save or update a configuration
-      configs[config.name] = {
-        ...config,
-        id: config.name,
-      };
-
+    if (!config) {
       return new Response(
         JSON.stringify({
-          success: true,
-          message: "Configuration saved successfully",
-          data: config,
+          success: false,
+          error: "Configuration is required",
         }),
         {
-          status: 200,
+          status: 400,
           headers: { "Content-Type": "application/json" },
         },
       );
     }
 
-    if (action === "delete") {
-      if (id === "default") {
+    // Validate age bands (no overlaps, no gaps)
+    const ageBands = config.age_bands || [];
+    if (ageBands.length > 0) {
+      // Check for overlaps and gaps
+      for (let i = 0; i < ageBands.length - 1; i++) {
+        const current = ageBands[i];
+        const next = ageBands[i + 1];
+
+        // Current band's max should be one less than next band's min
+        if (
+          current.max !== undefined &&
+          next.min !== undefined &&
+          current.max + 1 !== next.min
+        ) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Gap or overlap between bands "${current.name}" and "${next.name}"`,
+            }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+
+      // First band should have min 0 or -Infinity
+      if (ageBands[0].min !== 0) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Cannot delete default configuration",
+            error: "First age band must start at 0",
           }),
           {
             status: 400,
@@ -71,54 +88,35 @@ export async function POST(request) {
         );
       }
 
-      delete configs[id];
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Configuration deleted successfully",
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    if (action === "get") {
-      const config = configs[id];
-      if (!config) {
+      // Last band should have no max (open-ended)
+      if (ageBands[ageBands.length - 1].max !== undefined) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "Configuration not found",
+            error: "Last age band must be open-ended (no maximum)",
           }),
           {
-            status: 404,
+            status: 400,
             headers: { "Content-Type": "application/json" },
           },
         );
       }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: config,
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
     }
+
+    // Update configuration
+    currentConfig = {
+      ...currentConfig,
+      ...config,
+    };
 
     return new Response(
       JSON.stringify({
-        success: false,
-        error: "Invalid action",
+        success: true,
+        message: "Configuration updated successfully",
+        data: currentConfig,
       }),
       {
-        status: 400,
+        status: 200,
         headers: { "Content-Type": "application/json" },
       },
     );
