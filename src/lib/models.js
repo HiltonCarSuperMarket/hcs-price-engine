@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 // Strategy Schema - Flexible to support dynamic band configurations
 const StrategySchema = new mongoose.Schema(
@@ -26,7 +26,7 @@ const StrategySchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Configuration Schema - For storing global settings like tolerance_type, nudge_value, etc.
@@ -41,7 +41,7 @@ const ConfigurationSchema = new mongoose.Schema(
     description: String,
     category: String, // e.g., 'tolerance', 'nudge', 'system'
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Delete existing models to avoid conflicts during development
@@ -52,7 +52,7 @@ if (mongoose.models.Configuration) {
   delete mongoose.models.Configuration;
 }
 
-const Strategy = mongoose.model('Strategy', StrategySchema);
-const Configuration = mongoose.model('Configuration', ConfigurationSchema);
+const Strategy = mongoose.model("Strategy", StrategySchema);
+const Configuration = mongoose.model("Configuration", ConfigurationSchema);
 
 export { Strategy, Configuration };

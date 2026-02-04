@@ -74,9 +74,7 @@ class PricingEngine {
           }
         }
       }
-    } catch (e) {
-      console.log("[v0] Error in getRatingBandFromValue:", e.message);
-    }
+    } catch (e) {}
     return "78+"; // Default to highest band if can't parse
   }
 
@@ -217,7 +215,7 @@ class PricingEngine {
           const addValid = priceAdd >= lowerLimit && priceAdd <= upperLimit;
 
           let bestNudge = null;
-          const pref = this.config.nudge_preference.toLowerCase();
+          const pref = (this.config.nudge_preference || "drop").toLowerCase();
 
           if (pref === "drop") {
             bestNudge = dropValid ? priceDrop : addValid ? priceAdd : null;
@@ -291,35 +289,43 @@ function parseFloat_safe(val) {
 }
 
 function calculateStatistics(results) {
-  const dataIssues = results.filter(
-    (r) => r.reason && r.reason.startsWith("Data Error"),
-  );
-  const validResults = results.filter(
-    (r) => !r.reason || !r.reason.startsWith("Data Error"),
-  );
-
-  const withinStrategy = validResults.filter(
+  const totalStocks = results.length;
+  const notChange = results.filter(
     (r) => r.reason === "Within strategy",
-  );
-  const staleNudge = validResults.filter((r) =>
-    r.reason.startsWith("Stale nudge"),
-  );
-  const increases = validResults.filter(
-    (r) => r.new_price > r.current_price && !r.reason.startsWith("Stale nudge"),
-  );
-  const decreases = validResults.filter(
-    (r) => r.new_price < r.current_price && !r.reason.startsWith("Stale nudge"),
-  );
+  ).length;
+  const priceIncrease = results.filter(
+    (r) => r.reason && r.reason.includes("Increase to target"),
+  ).length;
+  const priceDecrease = results.filter(
+    (r) => r.reason && r.reason.includes("Decrease to target"),
+  ).length;
+  const totalWithinStrategy = results.filter(
+    (r) => r.reason && r.reason.includes("Within strategy"),
+  ).length;
+  const increaseWithinStrategy = results.filter(
+    (r) =>
+      r.reason &&
+      r.reason.includes("Stale nudge") &&
+      r.new_price - r.current_price > 0,
+  ).length;
+  const decreaseWithinStrategy = results.filter(
+    (r) =>
+      r.reason &&
+      r.reason.includes("Stale nudge") &&
+      r.new_price - r.current_price <= 0,
+  ).length;
+  const dataIssues = results.filter(
+    (r) => r.reason && r.reason.includes("Data Error"),
+  ).length;
 
-  const totalDrop = decreases.reduce((sum, r) => {
-    const drop = r.current_price - r.new_price;
-    return sum + (drop > 0 ? drop : 0);
+  const totalIncrement = results.reduce((sum, r) => {
+    const change = r.new_price - r.current_price;
+    return sum + (change > 0 ? change : 0);
   }, 0);
-
-  const totalIncrement = increases.reduce(
-    (sum, r) => sum + (r.new_price - r.current_price),
-    0,
-  );
+  const totalDrop = results.reduce((sum, r) => {
+    const change = r.new_price - r.current_price;
+    return sum + (change < 0 ? -change : 0);
+  }, 0);
   const netImpact = totalIncrement - totalDrop;
 
   return {
@@ -329,17 +335,22 @@ function calculateStatistics(results) {
       net_impact: netImpact,
     },
     summary: {
-      total_stocks: results.length,
-      within_strategy: withinStrategy.length,
-      optimized: staleNudge.length,
-      increases: increases.length,
-      decreases: decreases.length,
-      data_issues: dataIssues.length,
+      total_stocks: totalStocks,
+      within_strategy: notChange,
+      optimized: increaseWithinStrategy + decreaseWithinStrategy,
+      increases: priceIncrease,
+      decreases: priceDecrease,
+      data_issues: dataIssues,
+      total_within_strategy: totalWithinStrategy,
+      increase_within_strategy: increaseWithinStrategy,
+      decrease_within_strategy: decreaseWithinStrategy,
+      not_change: notChange,
+      price_increase: priceIncrease,
+      price_decrease: priceDecrease,
     },
     sample_results: results.slice(0, 10),
   };
 }
-
 export async function POST(request) {
   try {
     const formData = await request.formData();
@@ -468,10 +479,6 @@ export async function POST(request) {
         parseInt(record["Days since last price change"] || 0) || 0;
       const reference_price = currentPrice; // Will be calculated by engine, use current as fallback
 
-      // Create a rating band string for the pricing matrix lookup
-      // Need to convert numeric rating to band format that matches target_matrix keys
-      let ratingBand = "78+"; // default
-
       validRecords.push({
         ...record,
         stock_id: stockId,
@@ -487,142 +494,23 @@ export async function POST(request) {
 
     // Merge with default config if needed
     const fullConfig = {
-      reference_column: "Retail valuation", // Default reference column for vehicle pricing
-      tolerance_type: "percent",
-      tolerance_value: 2,
-      stale_days: 7,
-      nudge_type: "percent",
-      nudge_value: 1,
-      rounding_mode: "nearest",
-      weekend_hold: true,
-      phase_bands: {
-        target: [0, 30],
-        release: [31, 60],
-        overage: [61, 9999],
-      },
-      age_bands: [
-        "0-15",
-        "16-30",
-        "31-45",
-        "46-60",
-        "61-75",
-        "76-90",
-        "91-105",
-        "106-120",
-        "121-135",
-        "136-150",
-        "151-165",
-        "166-180",
-        "180+",
-      ],
-      rating_bands: [
-        { name: "<18", max: 17 },
-        { name: "18-37", min: 18, max: 37 },
-        { name: "38-57", min: 38, max: 57 },
-        { name: "58-77", min: 58, max: 77 },
-        { name: "78+", min: 78 },
-      ],
-      target_matrix: {
-        "0-15": {
-          "<18": 97.78,
-          "18-37": 97.78,
-          "38-57": 97.78,
-          "58-77": 98.78,
-          "78+": 98.78,
-        },
-        "16-30": {
-          "<18": 96.78,
-          "18-37": 97.78,
-          "38-57": 97.78,
-          "58-77": 98.78,
-          "78+": 98.78,
-        },
-        "31-45": {
-          "<18": 96.78,
-          "18-37": 96.78,
-          "38-57": 97.78,
-          "58-77": 97.78,
-          "78+": 97.78,
-        },
-        "46-60": {
-          "<18": 95.78,
-          "18-37": 96.78,
-          "38-57": 96.78,
-          "58-77": 97.78,
-          "78+": 97.78,
-        },
-        "61-75": {
-          "<18": 95.78,
-          "18-37": 95.78,
-          "38-57": 96.78,
-          "58-77": 96.78,
-          "78+": 96.78,
-        },
-        "76-90": {
-          "<18": 94.78,
-          "18-37": 95.78,
-          "38-57": 95.78,
-          "58-77": 96.78,
-          "78+": 96.78,
-        },
-        "91-105": {
-          "<18": 94.78,
-          "18-37": 94.78,
-          "38-57": 95.78,
-          "58-77": 95.78,
-          "78+": 95.78,
-        },
-        "106-120": {
-          "<18": 93.78,
-          "18-37": 94.78,
-          "38-57": 94.78,
-          "58-77": 95.78,
-          "78+": 95.78,
-        },
-        "121-135": {
-          "<18": 93.78,
-          "18-37": 93.78,
-          "38-57": 94.78,
-          "58-77": 94.78,
-          "78+": 94.78,
-        },
-        "136-150": {
-          "<18": 92.78,
-          "18-37": 93.78,
-          "38-57": 93.78,
-          "58-77": 94.78,
-          "78+": 94.78,
-        },
-        "151-165": {
-          "<18": 92.78,
-          "18-37": 92.78,
-          "38-57": 93.78,
-          "58-77": 93.78,
-          "78+": 93.78,
-        },
-        "166-180": {
-          "<18": 91.78,
-          "18-37": 92.78,
-          "38-57": 92.78,
-          "58-77": 93.78,
-          "78+": 93.78,
-        },
-        "180+": {
-          "<18": 90.78,
-          "18-37": 91.78,
-          "38-57": 92.78,
-          "58-77": 92.78,
-          "78+": 92.78,
-        },
-      },
-      ...config,
+      ...config[0],
     };
+
+    // console.log(JSON.stringify(fullConfig, null, 2));
 
     const engine = new PricingEngine(fullConfig);
     const validResults = engine.processStocks(validRecords);
 
     // Combine valid results with invalid records (marked with data errors)
     const results = [...validResults, ...invalidRecords];
+
+    const count = results.filter(
+      (item) =>
+        typeof item.reason === "string" && item.reason.startsWith("Data Error"),
+    ).length;
+
+    console.log("Data Error count:", count);
 
     // Convert results to CSV format with all required columns
     const csvLines = [
