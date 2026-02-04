@@ -1,11 +1,13 @@
-import { defaultConfig } from '@/lib/defaultConfig';
-import connectDB from '@/lib/mongodb';
-import { Strategy, Configuration } from '@/lib/models';
+import { defaultConfig } from "@/lib/defaultConfig";
+import connectDB from "@/lib/mongodb";
+import { Strategy, Configuration } from "@/lib/models";
 
 // Initialize default strategy if none exists
 async function initializeDefaults() {
   try {
-    const existingDefault = await Strategy.findOne({ name: 'Default Strategy' });
+    const existingDefault = await Strategy.findOne({
+      name: "Default Strategy",
+    });
     if (!existingDefault) {
       await Strategy.create({
         ...defaultConfig,
@@ -13,7 +15,7 @@ async function initializeDefaults() {
       });
     }
   } catch (error) {
-    console.error('Error initializing defaults:', error);
+    console.error("Error initializing defaults:", error);
   }
 }
 
@@ -22,10 +24,10 @@ export async function GET(request) {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type'); // 'strategy', 'config', or 'all'
-    const id = searchParams.get('id'); // Strategy ID
+    const type = searchParams.get("type"); // 'strategy', 'config', or 'all'
+    const id = searchParams.get("id"); // Strategy ID
 
-    if (type === 'config') {
+    if (type === "config") {
       // Fetch global configurations
       const configs = await Configuration.find();
       return new Response(
@@ -35,8 +37,8 @@ export async function GET(request) {
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          headers: { "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -47,12 +49,12 @@ export async function GET(request) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'Strategy not found',
+            error: "Strategy not found",
           }),
           {
             status: 404,
-            headers: { 'Content-Type': 'application/json' },
-          }
+            headers: { "Content-Type": "application/json" },
+          },
         );
       }
 
@@ -63,8 +65,8 @@ export async function GET(request) {
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          headers: { "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -81,11 +83,11 @@ export async function GET(request) {
       }),
       {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   } catch (error) {
-    console.error('GET /api/config error:', error);
+    console.error("GET /api/config error:", error);
     return new Response(
       JSON.stringify({
         success: false,
@@ -93,8 +95,8 @@ export async function GET(request) {
       }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 }
@@ -105,12 +107,15 @@ export async function POST(request) {
     const body = await request.json();
     const { action, config, id, configData } = body;
 
-    if (action === 'save' && config) {
+    if (action === "save" && config) {
       // Save strategy
       let strategy;
 
       // Validate age bands
+
       const ageBands = config.age_bands || [];
+
+      // ---- Validation (uses object format) ----
       if (ageBands.length > 0) {
         // Check for overlaps and gaps
         for (let i = 0; i < ageBands.length - 1; i++) {
@@ -129,8 +134,8 @@ export async function POST(request) {
               }),
               {
                 status: 400,
-                headers: { 'Content-Type': 'application/json' },
-              }
+                headers: { "Content-Type": "application/json" },
+              },
             );
           }
         }
@@ -139,12 +144,12 @@ export async function POST(request) {
           return new Response(
             JSON.stringify({
               success: false,
-              error: 'First age band must start at 0',
+              error: "First age band must start at 0",
             }),
             {
               status: 400,
-              headers: { 'Content-Type': 'application/json' },
-            }
+              headers: { "Content-Type": "application/json" },
+            },
           );
         }
 
@@ -152,13 +157,24 @@ export async function POST(request) {
           return new Response(
             JSON.stringify({
               success: false,
-              error: 'Last age band must be open-ended (no maximum)',
+              error: "Last age band must be open-ended (no maximum)",
             }),
             {
               status: 400,
-              headers: { 'Content-Type': 'application/json' },
-            }
+              headers: { "Content-Type": "application/json" },
+            },
           );
+        }
+      }
+
+      // ---- Convert ageBands IN-PLACE to expected string format ----
+      for (let i = 0; i < ageBands.length; i++) {
+        const band = ageBands[i];
+
+        if (band.max === undefined || band.max === null) {
+          ageBands[i] = `${band.min}+`; // "180+"
+        } else {
+          ageBands[i] = `${band.min}-${band.max}`;
         }
       }
 
@@ -175,7 +191,7 @@ export async function POST(request) {
           strategy = await Strategy.findOneAndUpdate(
             { name: config.name },
             config,
-            { new: true }
+            { new: true },
           );
         } else {
           // Create new strategy
@@ -186,28 +202,28 @@ export async function POST(request) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Strategy saved successfully',
+          message: "Strategy saved successfully",
           data: strategy,
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          headers: { "Content-Type": "application/json" },
+        },
       );
     }
 
-    if (action === 'delete' && id) {
+    if (action === "delete" && id) {
       // Delete strategy
-      if (id === 'Default Strategy') {
+      if (id === "Default Strategy") {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'Cannot delete default strategy',
+            error: "Cannot delete default strategy",
           }),
           {
             status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          }
+            headers: { "Content-Type": "application/json" },
+          },
         );
       }
 
@@ -216,16 +232,16 @@ export async function POST(request) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Strategy deleted successfully',
+          message: "Strategy deleted successfully",
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          headers: { "Content-Type": "application/json" },
+        },
       );
     }
 
-    if (action === 'saveConfig' && configData) {
+    if (action === "saveConfig" && configData) {
       // Save global configuration
       const { key, value, description, category } = configData;
 
@@ -236,7 +252,7 @@ export async function POST(request) {
         savedConfig = await Configuration.findOneAndUpdate(
           { key },
           { value, description, category },
-          { new: true }
+          { new: true },
         );
       } else {
         savedConfig = await Configuration.create({
@@ -250,28 +266,28 @@ export async function POST(request) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Configuration saved successfully',
+          message: "Configuration saved successfully",
           data: savedConfig,
         }),
         {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          headers: { "Content-Type": "application/json" },
+        },
       );
     }
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Invalid request',
+        error: "Invalid request",
       }),
       {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   } catch (error) {
-    console.error('POST /api/config error:', error);
+    console.error("POST /api/config error:", error);
     return new Response(
       JSON.stringify({
         success: false,
@@ -279,8 +295,8 @@ export async function POST(request) {
       }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 }

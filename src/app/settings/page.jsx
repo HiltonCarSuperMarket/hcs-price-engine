@@ -2,7 +2,25 @@
 
 import { useState, useEffect } from "react";
 import { ChevronDown, Plus, X, ArrowLeft, Save } from "lucide-react";
+import { Play, Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
+
+// Helper function to parse age band string and extract min/max values
+const parseAgeBand = (bandName) => {
+  if (bandName.endsWith("+")) {
+    // Handle "181+" format - minimum is the number, maximum is undefined
+    const min = parseInt(bandName.replace("+", ""));
+    return { min, max: undefined };
+  } else if (bandName.includes("-")) {
+    // Handle "0-15" format - extract both min and max
+    const [minStr, maxStr] = bandName.split("-");
+    const min = parseInt(minStr);
+    const max = parseInt(maxStr);
+    return { min, max };
+  }
+  // Fallback for unexpected format
+  return { min: 0, max: undefined };
+};
 
 export default function SettingsPage() {
   const [config, setConfig] = useState(null);
@@ -30,8 +48,24 @@ export default function SettingsPage() {
       if (data.success) {
         const strategies = data.data;
         // Use the first strategy (or default if available)
-        const defaultStrategy =
-          strategies.find((s) => s.name === "Default Strategy") || strategies[0];
+        let defaultStrategy =
+          strategies.find((s) => s.name === "Default Strategy") ||
+          strategies[0];
+
+        // Parse age bands to extract min/max from band names
+        if (defaultStrategy && defaultStrategy.age_bands) {
+          defaultStrategy.age_bands = defaultStrategy.age_bands.map((band) => {
+            // If band is a string (e.g., "0-15"), parse it to extract min/max
+            if (typeof band === "string") {
+              const { min, max } = parseAgeBand(band);
+              return { name: band, min, max };
+            }
+            // If band is already an object with min/max, parse name to ensure consistency
+            const { min, max } = parseAgeBand(band.name || band);
+            return { name: band.name || band, min, max };
+          });
+        }
+
         setConfig(defaultStrategy);
       } else {
         setMessage({
@@ -242,7 +276,7 @@ export default function SettingsPage() {
   return (
     <main className="min-h-screen bg-neutral-50">
       <div className="bg-white border-b border-neutral-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-6">
+        <div className="flex justify-between max-w-6xl mx-auto px-6 py-6">
           <div className="flex items-center gap-4">
             <Link href="/" className="text-blue-600 hover:text-blue-700">
               <ArrowLeft className="w-5 h-5" />
@@ -256,6 +290,13 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
+          <Link
+            href="/strategy"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition whitespace-nowrap"
+          >
+            <SettingsIcon className="w-4 h-4" />
+            Strategy Configuration
+          </Link>
         </div>
       </div>
 
@@ -317,7 +358,7 @@ export default function SettingsPage() {
                         "tolerance_type",
                         config.tolerance_type,
                         "Tolerance Type",
-                        "tolerance"
+                        "tolerance",
                       )
                     }
                     className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -348,7 +389,7 @@ export default function SettingsPage() {
                         "tolerance_value",
                         config.tolerance_value,
                         "Tolerance Value",
-                        "tolerance"
+                        "tolerance",
                       )
                     }
                     className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -381,7 +422,7 @@ export default function SettingsPage() {
                         "nudge_type",
                         config.nudge_type,
                         "Nudge Type",
-                        "nudge"
+                        "nudge",
                       )
                     }
                     className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -412,7 +453,7 @@ export default function SettingsPage() {
                         "nudge_value",
                         config.nudge_value,
                         "Nudge Value",
-                        "nudge"
+                        "nudge",
                       )
                     }
                     className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -445,7 +486,7 @@ export default function SettingsPage() {
                         "rounding_mode",
                         config.rounding_mode,
                         "Rounding Mode",
-                        "system"
+                        "system",
                       )
                     }
                     className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -475,7 +516,7 @@ export default function SettingsPage() {
                         "stale_days",
                         config.stale_days,
                         "Stale Days",
-                        "system"
+                        "system",
                       )
                     }
                     className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -557,7 +598,7 @@ export default function SettingsPage() {
                           "max",
                           e.target.value === ""
                             ? undefined
-                            : parseInt(e.target.value)
+                            : parseInt(e.target.value),
                         )
                       }
                       placeholder="Leave empty for open-ended"
@@ -655,7 +696,7 @@ export default function SettingsPage() {
                           "max",
                           e.target.value === ""
                             ? undefined
-                            : parseInt(e.target.value)
+                            : parseInt(e.target.value),
                         )
                       }
                       placeholder="Leave empty for open-ended"

@@ -11,6 +11,11 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
   const formatCurrency = (value) =>
     `£${value.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
+  const totalIncreaseCount =
+    summary.price_increase + summary.increase_within_strategy;
+  const totalDecreaseCount =
+    summary.price_decrease + summary.decrease_within_strategy;
+
   return (
     <div className="space-y-8">
       {/* Header with Reset and Download */}
@@ -52,23 +57,39 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
 
         <StatCard
           label="No Change"
-          value={summary?.within_strategy || 0}
+          value={summary?.not_change || 0}
           description="Within strategy"
           color="green"
         />
 
         <StatCard
-          label="Price Increases"
-          value={summary?.increases || 0}
-          description="Moving to target"
+          label="Target Price Increases"
+          value={summary?.price_increase || 0}
+          description="Increase to target"
           icon={<TrendingUp className="w-5 h-5" />}
           color="accent"
         />
 
         <StatCard
-          label="Price Decreases"
-          value={summary?.decreases || 0}
-          description="Moving to target"
+          label="Target Price Decreases"
+          value={summary?.price_decrease || 0}
+          description="Decrease to target"
+          icon={<TrendingDown className="w-5 h-5" />}
+          color="warning"
+        />
+
+        <StatCard
+          label="Stale Nudge Increases"
+          value={summary?.increase_within_strategy || 0}
+          description="Optimized increase"
+          icon={<TrendingUp className="w-5 h-5" />}
+          color="accent"
+        />
+
+        <StatCard
+          label="Stale Nudge Decreases"
+          value={summary?.decrease_within_strategy || 0}
+          description="Optimized decrease"
           icon={<TrendingDown className="w-5 h-5" />}
           color="warning"
         />
@@ -99,12 +120,12 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
               -{formatCurrency(stats?.total_drop || 0)}
             </p>
             <p className="text-xs text-red-600 mt-2">
-              {summary?.decreases} items decreased
+              {totalDecreaseCount} items decreased
             </p>
             <p className="text-xs text-red-500 mt-1">
               Avg: -
               {formatCurrency(
-                (stats?.total_drop || 0) / Math.max(summary?.decreases || 1, 1),
+                (stats?.total_drop || 0) / Math.max(totalDecreaseCount || 1, 1),
               )}
             </p>
           </div>
@@ -118,13 +139,13 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
               +{formatCurrency(stats?.total_increment || 0)}
             </p>
             <p className="text-xs text-green-600 mt-2">
-              {summary?.increases} items increased
+              {totalIncreaseCount} items increased
             </p>
             <p className="text-xs text-green-500 mt-1">
               Avg: +
               {formatCurrency(
                 (stats?.total_increment || 0) /
-                  Math.max(summary?.increases || 1, 1),
+                  Math.max(totalIncreaseCount || 1, 1),
               )}
             </p>
           </div>
@@ -180,17 +201,17 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-neutral-700">
-                  Within Strategy
+                  No Change
                 </p>
                 <p className="text-sm font-semibold text-neutral-900">
-                  {summary?.within_strategy || 0}
+                  {summary?.not_change || 0}
                 </p>
               </div>
               <div className="w-full bg-neutral-200 rounded-full h-2">
                 <div
                   className="bg-green-500 h-2 rounded-full"
                   style={{
-                    width: `${((summary?.within_strategy || 0) / (summary?.total_stocks || 1)) * 100}%`,
+                    width: `${((summary?.not_change || 0) / (summary?.total_stocks || 1)) * 100}%`,
                   }}
                 />
               </div>
@@ -201,38 +222,17 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-neutral-700">
-                  Price Optimization
+                  Target Price Increases
                 </p>
                 <p className="text-sm font-semibold text-neutral-900">
-                  {summary?.optimized || 0}
-                </p>
-              </div>
-              <div className="w-full bg-neutral-200 rounded-full h-2">
-                <div
-                  className="bg-accent h-2 rounded-full"
-                  style={{
-                    width: `${((summary?.optimized || 0) / (summary?.total_stocks || 1)) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-neutral-700">
-                  Price Increases
-                </p>
-                <p className="text-sm font-semibold text-neutral-900">
-                  {summary?.increases || 0}
+                  {summary?.price_increase || 0}
                 </p>
               </div>
               <div className="w-full bg-neutral-200 rounded-full h-2">
                 <div
                   className="bg-green-500 h-2 rounded-full"
                   style={{
-                    width: `${((summary?.increases || 0) / (summary?.total_stocks || 1)) * 100}%`,
+                    width: `${((summary?.price_increase || 0) / (summary?.total_stocks || 1)) * 100}%`,
                   }}
                 />
               </div>
@@ -243,17 +243,59 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-neutral-700">
-                  Price Decreases
+                  Target Price Decreases
                 </p>
                 <p className="text-sm font-semibold text-neutral-900">
-                  {summary?.decreases || 0}
+                  {summary?.price_decrease || 0}
                 </p>
               </div>
               <div className="w-full bg-neutral-200 rounded-full h-2">
                 <div
                   className="bg-red-500 h-2 rounded-full"
                   style={{
-                    width: `${((summary?.decreases || 0) / (summary?.total_stocks || 1)) * 100}%`,
+                    width: `${((summary?.price_decrease || 0) / (summary?.total_stocks || 1)) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-neutral-700">
+                  Stale Nudge Increases
+                </p>
+                <p className="text-sm font-semibold text-neutral-900">
+                  {summary?.increase_within_strategy || 0}
+                </p>
+              </div>
+              <div className="w-full bg-neutral-200 rounded-full h-2">
+                <div
+                  className="bg-green-500 h-2 rounded-full"
+                  style={{
+                    width: `${((summary?.increase_within_strategy || 0) / (summary?.total_stocks || 1)) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-neutral-700">
+                  Stale Nudge Decreases
+                </p>
+                <p className="text-sm font-semibold text-neutral-900">
+                  {summary?.decrease_within_strategy || 0}
+                </p>
+              </div>
+              <div className="w-full bg-neutral-200 rounded-full h-2">
+                <div
+                  className="bg-red-500 h-2 rounded-full"
+                  style={{
+                    width: `${((summary?.decrease_within_strategy || 0) / (summary?.total_stocks || 1)) * 100}%`,
                   }}
                 />
               </div>
@@ -291,12 +333,10 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
           <h3 className="text-lg font-semibold text-red-900 mb-4">
             Data Issues ({summary?.data_issues} records)
           </h3>
-          <p className="text-sm text-red-700 mb-4">
-            The following records were skipped due to invalid or missing data:
-          </p>
+
           <div className="space-y-2">
             {results.sample_results
-              .filter((r) => r.reason && r.reason.startsWith("Data Error"))
+              .filter((r) => r.reason && r.reason.includes("Data Error"))
               .slice(0, 10)
               .map((row, idx) => (
                 <div
@@ -355,9 +395,7 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
               </thead>
               <tbody>
                 {results.sample_results
-                  .filter(
-                    (r) => !r.reason || !r.reason.startsWith("Data Error"),
-                  )
+                  .filter((r) => !r.reason || !r.reason.includes("Data Error"))
                   .slice(0, 10)
                   .map((row, idx) => {
                     const change = row.new_price - row.current_price;
