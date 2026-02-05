@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toastUtils } from "@/lib/utils";
+import { TableSkeleton } from "@/components/SkeletonLoader";
 
 export default function TargetMatrixEditor() {
   const [strategyId, setStrategyId] = useState(null);
@@ -13,15 +14,12 @@ export default function TargetMatrixEditor() {
   const [targetMatrix, setTargetMatrix] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
 
   // Fetch data on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(false);
-        setError(null);
+        setLoading(true);
 
         // Get strategy ID from URL or use default
         const params = new URLSearchParams(window.location.search);
@@ -57,8 +55,8 @@ export default function TargetMatrixEditor() {
 
         setTargetMatrix(initialMatrix);
       } catch (err) {
-        setError(err.message || "Failed to load data");
         console.error("Error fetching target matrix:", err);
+        toastUtils.error(err.message || "Failed to load data");
       } finally {
         setLoading(false);
       }
@@ -82,8 +80,6 @@ export default function TargetMatrixEditor() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      setError(null);
-      setSuccess(null);
 
       // Validate all fields are filled
       const hasEmptyValues = Object.entries(targetMatrix).some(
@@ -94,7 +90,7 @@ export default function TargetMatrixEditor() {
       );
 
       if (hasEmptyValues) {
-        setError("Please fill in all values before saving");
+        toastUtils.error("Please fill in all values before saving");
         setSaving(false);
         return;
       }
@@ -106,7 +102,7 @@ export default function TargetMatrixEditor() {
       );
 
       if (hasInvalidValues) {
-        setError("All values must be valid numbers");
+        toastUtils.error("All values must be valid numbers");
         setSaving(false);
         return;
       }
@@ -119,6 +115,8 @@ export default function TargetMatrixEditor() {
           matrixToSave[ageBand][ratingBand] = parseFloat(value);
         });
       });
+
+      const loadingToast = toastUtils.loading("Saving target matrix...");
 
       const response = await fetch("/api/target-matrix", {
         method: "POST",
@@ -133,15 +131,16 @@ export default function TargetMatrixEditor() {
 
       const result = await response.json();
 
+      toastUtils.dismiss(loadingToast);
+
       if (!result.success) {
         throw new Error(result.error || "Failed to save data");
       }
 
-      setSuccess("Target matrix saved successfully!");
-      setTimeout(() => setSuccess(null), 3000);
+      toastUtils.success("Target matrix saved successfully!");
     } catch (err) {
-      setError(err.message || "Failed to save data");
       console.error("Error saving target matrix:", err);
+      toastUtils.error(err.message || "Failed to save data");
     } finally {
       setSaving(false);
     }
@@ -149,52 +148,45 @@ export default function TargetMatrixEditor() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-muted-foreground">Loading...</div>
+      <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30 p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8 space-y-3">
+            <div className="h-10 w-64 bg-muted animate-pulse rounded-lg" />
+            <div className="h-6 w-96 max-w-full bg-muted animate-pulse rounded-lg" />
+          </div>
+          <TableSkeleton rows={8} cols={5} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Target Matrix Editor</h1>
-          <p className="text-muted-foreground">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 bg-gradient-to-r from-neutral-900 to-blue-800 bg-clip-text text-transparent">
+            Target Matrix Editor
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Configure target values for each age band and rating band
             combination
           </p>
         </div>
 
-        {/* Alerts */}
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {success && (
-          <Alert className="mb-4 bg-green-50 border-green-200">
-            <AlertDescription className="text-green-800">
-              {success}
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Table Card */}
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden shadow-lg">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse min-w-[600px]">
               <thead>
-                <tr className="bg-muted border-b">
-                  <th className="px-4 py-3 text-left font-semibold border-r">
+                <tr className="bg-gradient-to-r from-muted to-muted/80 border-b-2 border-neutral-200">
+                  <th className="px-3 sm:px-4 py-3 text-left font-semibold text-sm sm:text-base border-r sticky left-0 bg-gradient-to-r from-muted to-muted/80 z-10">
                     Age Band
                   </th>
                   {ratingBands.map((band) => (
                     <th
                       key={band.name || band}
-                      className="px-4 py-3 text-center font-semibold border-r last:border-r-0"
+                      className="px-3 sm:px-4 py-3 text-center font-semibold text-xs sm:text-sm border-r last:border-r-0 whitespace-nowrap"
                     >
                       {band.name || band}
                     </th>
@@ -205,11 +197,13 @@ export default function TargetMatrixEditor() {
                 {ageBands.map((ageBand, index) => (
                   <tr
                     key={ageBand}
-                    className={
-                      index % 2 === 0 ? "bg-background" : "bg-muted/50"
-                    }
+                    className={`transition-colors ${
+                      index % 2 === 0 
+                        ? "bg-background hover:bg-neutral-50/50" 
+                        : "bg-muted/30 hover:bg-muted/50"
+                    }`}
                   >
-                    <td className="px-4 py-3 font-medium border-r bg-muted/30">
+                    <td className="px-3 sm:px-4 py-3 font-semibold text-sm sm:text-base border-r sticky left-0 bg-inherit z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
                       {ageBand}
                     </td>
                     {ratingBands.map((ratingBand) => {
@@ -221,32 +215,34 @@ export default function TargetMatrixEditor() {
                       return (
                         <td
                           key={`${ageBand}-${ratingName}`}
-                          className="px-4 py-3 border-r last:border-r-0"
+                          className="px-2 sm:px-3 py-3 border-r last:border-r-0"
                         >
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="Enter value"
-                            value={value}
-                            onChange={(e) =>
-                              handleInputChange(
-                                ageBand,
-                                ratingName,
-                                e.target.value,
-                              )
-                            }
-                            className={`w-full text-center ${
-                              isEmpty
-                                ? "border-yellow-300 bg-yellow-50"
-                                : "border-input"
-                            }`}
-                            disabled={saving}
-                          />
-                          {isEmpty && (
-                            <p className="text-xs text-yellow-700 mt-1">
-                              Required
-                            </p>
-                          )}
+                          <div className="space-y-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={value}
+                              onChange={(e) =>
+                                handleInputChange(
+                                  ageBand,
+                                  ratingName,
+                                  e.target.value,
+                                )
+                              }
+                              className={`w-full text-center text-sm sm:text-base transition-all ${
+                                isEmpty
+                                  ? "border-yellow-400 bg-yellow-50/50 focus:border-yellow-500 focus:ring-yellow-200"
+                                  : "border-input focus:border-blue-500 focus:ring-blue-200"
+                              }`}
+                              disabled={saving}
+                            />
+                            {isEmpty && (
+                              <p className="text-xs text-yellow-600 font-medium text-center">
+                                Required
+                              </p>
+                            )}
+                          </div>
                         </td>
                       );
                     })}
@@ -258,35 +254,53 @@ export default function TargetMatrixEditor() {
         </Card>
 
         {/* Action Buttons */}
-        <div className="mt-6 flex gap-3 justify-end">
+        <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-end">
           <Button
             variant="outline"
             onClick={() => window.location.reload()}
             disabled={saving}
+            className="w-full sm:w-auto"
           >
             Reset
           </Button>
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all"
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </span>
+            ) : (
+              "Save Changes"
+            )}
           </Button>
         </div>
 
         {/* Info Section */}
-        <div className="mt-8 p-4 bg-muted rounded-lg">
-          <h3 className="font-semibold mb-2">Information</h3>
-          <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-            <li>Total Age Bands: {ageBands.length}</li>
-            <li>Total Rating Bands: {ratingBands.length}</li>
-            <li>
+        <Card className="mt-6 sm:mt-8 p-4 sm:p-6 bg-gradient-to-br from-muted/50 to-muted/30 border-neutral-200">
+          <h3 className="font-semibold mb-3 text-base sm:text-lg">Information</h3>
+          <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <li className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+              Total Age Bands: <strong className="text-foreground">{ageBands.length}</strong>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+              Total Rating Bands: <strong className="text-foreground">{ratingBands.length}</strong>
+            </li>
+            <li className="flex items-start gap-2 sm:col-span-2">
+              <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mt-1.5 flex-shrink-0" />
               All fields marked with "Required" must be filled before saving
             </li>
-            <li>Values must be valid numbers</li>
+            <li className="flex items-center gap-2 sm:col-span-2">
+              <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+              Values must be valid numbers
+            </li>
           </ul>
-        </div>
+        </Card>
       </div>
     </div>
   );
