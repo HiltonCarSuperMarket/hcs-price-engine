@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { ChevronDown, Plus, X, ArrowLeft, Save } from "lucide-react";
 import { Play, Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
+import { toastUtils } from "@/lib/utils";
+import { ConfigSkeleton } from "@/components/SkeletonLoader";
 
 // Helper function to parse age band string and extract min/max values
 const parseAgeBand = (bandName) => {
@@ -27,7 +29,6 @@ export default function SettingsPage() {
   const [globalConfigs, setGlobalConfigs] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
     age: true,
     rating: false,
@@ -68,14 +69,11 @@ export default function SettingsPage() {
 
         setConfig(defaultStrategy);
       } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to load configuration",
-        });
+        toastUtils.error(data.error || "Failed to load configuration");
       }
     } catch (err) {
-      setMessage({ type: "error", text: "Failed to load configuration" });
       console.error("Load config error:", err);
+      toastUtils.error("Failed to load configuration");
     } finally {
       setLoading(false);
     }
@@ -102,7 +100,7 @@ export default function SettingsPage() {
 
     try {
       setSaving(true);
-      setMessage(null);
+      const loadingToast = toastUtils.loading("Saving configuration...");
 
       const response = await fetch("/api/config", {
         method: "POST",
@@ -115,21 +113,16 @@ export default function SettingsPage() {
 
       const data = await response.json();
 
+      toastUtils.dismiss(loadingToast);
+
       if (data.success) {
-        setMessage({
-          type: "success",
-          text: "Configuration saved successfully!",
-        });
-        setTimeout(() => setMessage(null), 4000);
+        toastUtils.success("Configuration saved successfully!");
       } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to save configuration",
-        });
+        toastUtils.error(data.error || "Failed to save configuration");
       }
     } catch (err) {
-      setMessage({ type: "error", text: "Error saving configuration" });
       console.error("Save config error:", err);
+      toastUtils.error("Error saving configuration");
     } finally {
       setSaving(false);
     }
@@ -137,6 +130,8 @@ export default function SettingsPage() {
 
   const saveGlobalConfig = async (key, value, description, category) => {
     try {
+      const loadingToast = toastUtils.loading(`Saving ${description}...`);
+
       const response = await fetch("/api/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -153,28 +148,20 @@ export default function SettingsPage() {
 
       const data = await response.json();
 
+      toastUtils.dismiss(loadingToast);
+
       if (data.success) {
         setGlobalConfigs((prev) => ({
           ...prev,
           [key]: value,
         }));
-        setMessage({
-          type: "success",
-          text: `${description} saved successfully!`,
-        });
-        setTimeout(() => setMessage(null), 4000);
+        toastUtils.success(`${description} saved successfully!`);
       } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to save configuration",
-        });
+        toastUtils.error(data.error || "Failed to save configuration");
       }
     } catch (err) {
-      setMessage({
-        type: "error",
-        text: `Error saving ${description}`,
-      });
       console.error("Save global config error:", err);
+      toastUtils.error(`Error saving ${description}`);
     }
   };
 
@@ -254,10 +241,14 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-neutral-50">
-        <div className="max-w-6xl mx-auto px-6 py-12 text-center">
-          <div className="inline-block animate-spin">⏳</div>
-          <p className="mt-2 text-neutral-600">Loading configuration...</p>
+      <main className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30">
+        <div className="bg-white/80 backdrop-blur-sm border-b border-neutral-200/50 sticky top-0 z-10 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="h-10 w-48 bg-muted animate-pulse rounded-lg" />
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ConfigSkeleton />
         </div>
       </main>
     );
@@ -265,56 +256,51 @@ export default function SettingsPage() {
 
   if (!config) {
     return (
-      <main className="min-h-screen bg-neutral-50">
-        <div className="max-w-6xl mx-auto px-6 py-12 text-center">
-          <p className="text-red-600">Failed to load configuration</p>
+      <main className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+          <p className="text-red-600 font-medium">Failed to load configuration</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-neutral-50">
-      <div className="bg-white border-b border-neutral-200 sticky top-0 z-10">
-        <div className="flex justify-between max-w-6xl mx-auto px-6 py-6">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-blue-600 hover:text-blue-700">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-neutral-900">
-                Configuration
-              </h1>
-              <p className="text-neutral-600 mt-1">
-                Configure your pricing strategy parameters
-              </p>
+    <main className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30">
+      <div className="bg-white/80 backdrop-blur-sm border-b border-neutral-200/50 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Link 
+                href="/" 
+                className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-neutral-900 to-blue-800 bg-clip-text text-transparent">
+                  Configuration
+                </h1>
+                <p className="text-sm sm:text-base text-neutral-600 mt-1">
+                  Configure your pricing strategy parameters
+                </p>
+              </div>
             </div>
+            <Link
+              href="/strategy"
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-medium w-full sm:w-auto justify-center"
+            >
+              <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Strategy Configuration</span>
+              <span className="sm:hidden">Strategy</span>
+            </Link>
           </div>
-          <Link
-            href="/strategy"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition whitespace-nowrap"
-          >
-            <SettingsIcon className="w-4 h-4" />
-            Strategy Configuration
-          </Link>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        {message && (
-          <div
-            className={`mb-6 p-4 rounded-lg border transition ${
-              message.type === "success"
-                ? "bg-green-50 border-green-200 text-green-800"
-                : "bg-red-50 border-red-200 text-red-800"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
-
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Global Configuration Section */}
-        <div className="mb-8 bg-white rounded-lg border border-neutral-200 overflow-hidden">
+        <div className="mb-6 sm:mb-8 bg-white rounded-xl border border-neutral-200/50 overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
           <button
             onClick={() =>
               setExpandedSections({
@@ -322,24 +308,24 @@ export default function SettingsPage() {
                 global: !expandedSections.global,
               })
             }
-            className="w-full flex items-center justify-between p-6 hover:bg-neutral-50 transition"
+            className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-neutral-50/50 transition-colors"
           >
-            <h2 className="text-lg font-semibold text-neutral-900">
+            <h2 className="text-base sm:text-lg font-semibold text-neutral-900">
               Global Settings
             </h2>
             <ChevronDown
-              className={`w-5 h-5 text-neutral-600 transition ${
+              className={`w-5 h-5 text-neutral-600 transition-transform duration-200 ${
                 expandedSections.global ? "rotate-180" : ""
               }`}
             />
           </button>
 
           {expandedSections.global && (
-            <div className="border-t border-neutral-200 p-6 space-y-6">
+            <div className="border-t border-neutral-200 p-4 sm:p-6 space-y-6">
               {/* Tolerance Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6 border-b border-neutral-200">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pb-6 border-b border-neutral-200">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-neutral-700">
                     Tolerance Type
                   </label>
                   <select
@@ -347,7 +333,7 @@ export default function SettingsPage() {
                     onChange={(e) => {
                       setConfig({ ...config, tolerance_type: e.target.value });
                     }}
-                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                   >
                     <option value="percent">Percent (%)</option>
                     <option value="fixed">Fixed Amount (£)</option>
@@ -361,14 +347,14 @@ export default function SettingsPage() {
                         "tolerance",
                       )
                     }
-                    className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                    className="mt-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md"
                   >
                     Save
                   </button>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-neutral-700">
                     Tolerance Value
                   </label>
                   <input
@@ -381,7 +367,7 @@ export default function SettingsPage() {
                         tolerance_value: parseFloat(e.target.value),
                       });
                     }}
-                    className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                   />
                   <button
                     onClick={() =>
@@ -392,7 +378,7 @@ export default function SettingsPage() {
                         "tolerance",
                       )
                     }
-                    className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                    className="mt-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md"
                   >
                     Save
                   </button>
@@ -530,7 +516,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Age Bands Section */}
-        <div className="mb-8 bg-white rounded-lg border border-neutral-200 overflow-hidden">
+        <div className="mb-6 sm:mb-8 bg-white rounded-xl border border-neutral-200/50 overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
           <button
             onClick={() =>
               setExpandedSections({
@@ -538,27 +524,27 @@ export default function SettingsPage() {
                 age: !expandedSections.age,
               })
             }
-            className="w-full flex items-center justify-between p-6 hover:bg-neutral-50 transition"
+            className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-neutral-50/50 transition-colors"
           >
-            <h2 className="text-lg font-semibold text-neutral-900">
+            <h2 className="text-base sm:text-lg font-semibold text-neutral-900">
               Age Bands
             </h2>
             <ChevronDown
-              className={`w-5 h-5 text-neutral-600 transition ${
+              className={`w-5 h-5 text-neutral-600 transition-transform duration-200 ${
                 expandedSections.age ? "rotate-180" : ""
               }`}
             />
           </button>
 
           {expandedSections.age && (
-            <div className="border-t border-neutral-200 p-6 space-y-4">
+            <div className="border-t border-neutral-200 p-4 sm:p-6 space-y-4">
               {config.age_bands.map((band, idx) => (
                 <div
                   key={idx}
-                  className="flex items-end gap-4 p-4 bg-neutral-50 rounded-lg"
+                  className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 sm:gap-4 p-4 bg-gradient-to-br from-neutral-50 to-neutral-50/50 rounded-lg border border-neutral-200/50"
                 >
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs sm:text-sm font-semibold text-neutral-700 mb-1.5">
                       Band Name
                     </label>
                     <input
@@ -567,12 +553,12 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         updateAgeBand(idx, "name", e.target.value)
                       }
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     />
                   </div>
 
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs sm:text-sm font-semibold text-neutral-700 mb-1.5">
                       Min (Days)
                     </label>
                     <input
@@ -581,12 +567,12 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         updateAgeBand(idx, "min", parseInt(e.target.value))
                       }
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     />
                   </div>
 
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs sm:text-sm font-semibold text-neutral-700 mb-1.5">
                       Max (Days)
                     </label>
                     <input
@@ -601,24 +587,26 @@ export default function SettingsPage() {
                             : parseInt(e.target.value),
                         )
                       }
-                      placeholder="Leave empty for open-ended"
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Open-ended"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     />
                   </div>
 
                   <button
                     onClick={() => removeAgeBand(idx)}
                     disabled={config.age_bands.length === 1}
-                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center sm:justify-start gap-2"
+                    aria-label="Remove age band"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="sm:hidden text-xs">Remove</span>
                   </button>
                 </div>
               ))}
 
               <button
                 onClick={addAgeBand}
-                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium border border-blue-200 hover:border-blue-300"
               >
                 <Plus className="w-4 h-4" />
                 Add Age Band
@@ -628,7 +616,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Rating Bands Section */}
-        <div className="mb-8 bg-white rounded-lg border border-neutral-200 overflow-hidden">
+        <div className="mb-6 sm:mb-8 bg-white rounded-xl border border-neutral-200/50 overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
           <button
             onClick={() =>
               setExpandedSections({
@@ -636,27 +624,27 @@ export default function SettingsPage() {
                 rating: !expandedSections.rating,
               })
             }
-            className="w-full flex items-center justify-between p-6 hover:bg-neutral-50 transition"
+            className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-neutral-50/50 transition-colors"
           >
-            <h2 className="text-lg font-semibold text-neutral-900">
+            <h2 className="text-base sm:text-lg font-semibold text-neutral-900">
               Rating Bands
             </h2>
             <ChevronDown
-              className={`w-5 h-5 text-neutral-600 transition ${
+              className={`w-5 h-5 text-neutral-600 transition-transform duration-200 ${
                 expandedSections.rating ? "rotate-180" : ""
               }`}
             />
           </button>
 
           {expandedSections.rating && (
-            <div className="border-t border-neutral-200 p-6 space-y-4">
+            <div className="border-t border-neutral-200 p-4 sm:p-6 space-y-4">
               {config.rating_bands.map((band, idx) => (
                 <div
                   key={idx}
-                  className="flex items-end gap-4 p-4 bg-neutral-50 rounded-lg"
+                  className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 sm:gap-4 p-4 bg-gradient-to-br from-neutral-50 to-neutral-50/50 rounded-lg border border-neutral-200/50"
                 >
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs sm:text-sm font-semibold text-neutral-700 mb-1.5">
                       Band Name
                     </label>
                     <input
@@ -665,12 +653,12 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         updateRatingBand(idx, "name", e.target.value)
                       }
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     />
                   </div>
 
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs sm:text-sm font-semibold text-neutral-700 mb-1.5">
                       Min Score
                     </label>
                     <input
@@ -679,12 +667,12 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         updateRatingBand(idx, "min", parseInt(e.target.value))
                       }
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     />
                   </div>
 
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs sm:text-sm font-semibold text-neutral-700 mb-1.5">
                       Max Score
                     </label>
                     <input
@@ -699,24 +687,26 @@ export default function SettingsPage() {
                             : parseInt(e.target.value),
                         )
                       }
-                      placeholder="Leave empty for open-ended"
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Open-ended"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     />
                   </div>
 
                   <button
                     onClick={() => removeRatingBand(idx)}
                     disabled={config.rating_bands.length === 1}
-                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center sm:justify-start gap-2"
+                    aria-label="Remove rating band"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="sm:hidden text-xs">Remove</span>
                   </button>
                 </div>
               ))}
 
               <button
                 onClick={addRatingBand}
-                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium border border-blue-200 hover:border-blue-300"
               >
                 <Plus className="w-4 h-4" />
                 Add Rating Band
@@ -726,18 +716,27 @@ export default function SettingsPage() {
         </div>
 
         {/* Save Button */}
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-neutral-200">
           <button
             onClick={saveConfig}
             disabled={saving}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition"
+            className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:transform-none"
           >
-            <Save className="w-4 h-4" />
-            {saving ? "Saving..." : "Save Configuration"}
+            {saving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Save Configuration</span>
+              </>
+            )}
           </button>
           <Link
             href="/"
-            className="px-6 py-3 bg-neutral-200 text-neutral-800 font-medium rounded-lg hover:bg-neutral-300 transition"
+            className="px-6 sm:px-8 py-3 bg-neutral-200 text-neutral-800 font-medium rounded-lg hover:bg-neutral-300 transition-colors text-center"
           >
             Cancel
           </Link>
