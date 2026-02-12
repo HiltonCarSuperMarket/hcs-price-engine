@@ -117,26 +117,34 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30">
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-neutral-200/50 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="bg-[#480C7B] backdrop-blur-sm border-b border-neutral-200/50 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg shadow-lg">
-                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <div className="flex ">
+                  <Link href="/" className="flex items-center space-x-6">
+                    <div
+                      style={{
+                        backgroundColor: "#480C7B",
+                        display: "inline-block",
+                        padding: "10px",
+                      }}
+                    >
+                      <img
+                        src="/logo-hilton.svg"
+                        alt="Hilton logo"
+                        width={200}
+                        height={30}
+                      />
+                    </div>
+                  </Link>
                 </div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl leading-tight font-bold bg-gradient-to-r from-neutral-900 via-blue-800 to-neutral-900 bg-clip-text text-transparent">
-                  HCS Pricing Engine
-                </h1>
               </div>
-              <p className="text-sm sm:text-base text-neutral-600 ml-12 sm:ml-14">
-                Upload your stock CSV file and process it with intelligent
-                pricing strategy
-              </p>
             </div>
             <Link
               href="/settings"
-              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-medium"
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#914f9e] from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-medium"
             >
               <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline">Configuration</span>
@@ -164,7 +172,7 @@ export default function Home() {
                 <button
                   onClick={handleProcess}
                   disabled={isProcessing}
-                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none disabled:shadow-md text-sm sm:text-base"
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-[#914f9e] from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none disabled:shadow-md text-sm sm:text-base"
                 >
                   {isProcessing ? (
                     <>
@@ -181,7 +189,9 @@ export default function Home() {
                 {isProcessing && (
                   <div className="flex items-center justify-center gap-2 text-blue-600 bg-blue-50 rounded-lg px-4 py-3 border border-blue-200">
                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-sm sm:text-base">Processing your file...</span>
+                    <span className="text-sm sm:text-base">
+                      Processing your file...
+                    </span>
                   </div>
                 )}
               </div>

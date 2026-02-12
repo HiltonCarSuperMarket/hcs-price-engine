@@ -258,7 +258,9 @@ export default function SettingsPage() {
     return (
       <main className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-          <p className="text-red-600 font-medium">Failed to load configuration</p>
+          <p className="text-red-600 font-medium">
+            Failed to load configuration
+          </p>
         </div>
       </main>
     );
@@ -266,29 +268,39 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30">
-      <div className="bg-white/80 backdrop-blur-sm border-b border-neutral-200/50 sticky top-0 z-10 shadow-sm">
+      <div className="bg-[#480C7B] backdrop-blur-sm border-b border-neutral-200/50 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
                 aria-label="Go back"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-neutral-900 to-blue-800 bg-clip-text text-transparent">
-                  Configuration
-                </h1>
-                <p className="text-sm sm:text-base text-neutral-600 mt-1">
-                  Configure your pricing strategy parameters
-                </p>
+              <div className="flex ">
+                <Link href="/" className="flex items-center space-x-6">
+                  <div
+                    style={{
+                      backgroundColor: "#480C7B",
+                      display: "inline-block",
+                      padding: "10px",
+                    }}
+                  >
+                    <img
+                      src="/logo-hilton.svg"
+                      alt="Hilton logo"
+                      width={200}
+                      height={30}
+                    />
+                  </div>
+                </Link>
               </div>
             </div>
             <Link
               href="/strategy"
-              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-medium w-full sm:w-auto justify-center"
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#914f9e] from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-medium w-full sm:w-auto justify-center"
             >
               <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden sm:inline">Strategy Configuration</span>
@@ -347,7 +359,7 @@ export default function SettingsPage() {
                         "tolerance",
                       )
                     }
-                    className="mt-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md"
+                    className="mt-2 px-4 py-2 text-sm font-medium bg-[#914f9e] from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md"
                   >
                     Save
                   </button>
@@ -378,7 +390,7 @@ export default function SettingsPage() {
                         "tolerance",
                       )
                     }
-                    className="mt-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md"
+                    className="mt-2 px-4 py-2 text-sm font-medium bg-[#914f9e] from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md"
                   >
                     Save
                   </button>
@@ -720,7 +732,7 @@ export default function SettingsPage() {
           <button
             onClick={saveConfig}
             disabled={saving}
-            className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:transform-none"
+            className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 bg-[#914f9e] from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:transform-none"
           >
             {saving ? (
               <>

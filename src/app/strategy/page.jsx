@@ -165,7 +165,7 @@ export default function TargetMatrixEditor() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 bg-gradient-to-r from-neutral-900 to-blue-800 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 bg-[#914f9e] from-neutral-900 to-blue-800 bg-clip-text text-transparent">
             Target Matrix Editor
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
@@ -179,8 +179,8 @@ export default function TargetMatrixEditor() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse min-w-[600px]">
               <thead>
-                <tr className="bg-gradient-to-r from-muted to-muted/80 border-b-2 border-neutral-200">
-                  <th className="px-3 sm:px-4 py-3 text-left font-semibold text-sm sm:text-base border-r sticky left-0 bg-gradient-to-r from-muted to-muted/80 z-10">
+                <tr className="bg-[#914f9e] from-muted to-muted/80 border-b-2 border-neutral-200">
+                  <th className="px-3 sm:px-4 py-3 text-left font-semibold text-sm sm:text-base border-r sticky left-0 bg-[#914f9e] from-muted to-muted/80 z-10">
                     Age Band
                   </th>
                   {ratingBands.map((band) => (
@@ -198,8 +198,8 @@ export default function TargetMatrixEditor() {
                   <tr
                     key={ageBand}
                     className={`transition-colors ${
-                      index % 2 === 0 
-                        ? "bg-background hover:bg-neutral-50/50" 
+                      index % 2 === 0
+                        ? "bg-background hover:bg-neutral-50/50"
                         : "bg-muted/30 hover:bg-muted/50"
                     }`}
                   >
@@ -266,7 +266,7 @@ export default function TargetMatrixEditor() {
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all"
+            className="w-full sm:w-auto bg-[#914f9e] from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all"
           >
             {saving ? (
               <span className="flex items-center gap-2">
@@ -281,15 +281,19 @@ export default function TargetMatrixEditor() {
 
         {/* Info Section */}
         <Card className="mt-6 sm:mt-8 p-4 sm:p-6 bg-gradient-to-br from-muted/50 to-muted/30 border-neutral-200">
-          <h3 className="font-semibold mb-3 text-base sm:text-lg">Information</h3>
+          <h3 className="font-semibold mb-3 text-base sm:text-lg">
+            Information
+          </h3>
           <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
             <li className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
-              Total Age Bands: <strong className="text-foreground">{ageBands.length}</strong>
+              Total Age Bands:{" "}
+              <strong className="text-foreground">{ageBands.length}</strong>
             </li>
             <li className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
-              Total Rating Bands: <strong className="text-foreground">{ratingBands.length}</strong>
+              Total Rating Bands:{" "}
+              <strong className="text-foreground">{ratingBands.length}</strong>
             </li>
             <li className="flex items-start gap-2 sm:col-span-2">
               <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mt-1.5 flex-shrink-0" />

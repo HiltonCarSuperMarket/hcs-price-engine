@@ -21,7 +21,7 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
       {/* Header with Reset and Download */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-neutral-900 to-blue-800 bg-clip-text text-transparent">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-[#914f9e] from-neutral-900 to-blue-800 bg-clip-text text-transparent">
             Processing Complete
           </h2>
           <p className="text-sm sm:text-base text-neutral-600 mt-1">
@@ -31,7 +31,7 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <button
             onClick={onDownload}
-            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-semibold text-sm sm:text-base"
+            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#914f9e] from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-semibold text-sm sm:text-base"
           >
             <Download className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Download CSV</span>
@@ -46,8 +46,8 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
         </div>
       </div>
 
-      {/* Key Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+      {/* Key Metrics Grid - Compact Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <StatCard
           label="Total Units"
           value={summary?.total_stocks || 0}
@@ -62,37 +62,59 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
           color="green"
         />
 
-        <StatCard
-          label="Target Price Increases"
-          value={summary?.price_increase || 0}
-          description="Increase to target"
-          icon={<TrendingUp className="w-5 h-5" />}
-          color="accent"
-        />
+        {/* Target Price Card - Combined */}
+        <div className="rounded-lg border p-4 shadow-sm bg-white rounded-lg sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+          <p className="text-xs sm:text-sm font-medium text-neutral-600 mb-2">
+            Price Change
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-green-600 text-xs font-semibold">↑</span>
+              <span className="text-green-700 font-bold text-sm">
+                {summary?.price_increase || 0}
+              </span>
+              <span className="text-green-600 text-xs">
+                +{formatCurrency(stats?.increase_to_target_amount || 0)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-red-600 text-xs font-semibold">↓</span>
+              <span className="text-red-700 font-bold text-sm">
+                {summary?.price_decrease || 0}
+              </span>
+              <span className="text-red-600 text-xs">
+                -{formatCurrency(stats?.decrease_to_target_amount || 0)}
+              </span>
+            </div>
+          </div>
+        </div>
 
-        <StatCard
-          label="Target Price Decreases"
-          value={summary?.price_decrease || 0}
-          description="Decrease to target"
-          icon={<TrendingDown className="w-5 h-5" />}
-          color="warning"
-        />
-
-        <StatCard
-          label="Stale Nudge Increases"
-          value={summary?.increase_within_strategy || 0}
-          description="Optimized increase"
-          icon={<TrendingUp className="w-5 h-5" />}
-          color="accent"
-        />
-
-        <StatCard
-          label="Stale Nudge Decreases"
-          value={summary?.decrease_within_strategy || 0}
-          description="Optimized decrease"
-          icon={<TrendingDown className="w-5 h-5" />}
-          color="warning"
-        />
+        {/* Stale Nudge Card - Combined */}
+        <div className="rounded-lg border p-4 shadow-sm bg-white rounded-lg sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+          <p className="text-xs sm:text-sm font-medium text-neutral-600 mb-2">
+            Price Refresh
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-green-600 text-xs font-semibold">↑</span>
+              <span className="text-green-700 font-bold text-sm">
+                {summary?.increase_within_strategy || 0}
+              </span>
+              <span className="text-green-600 text-xs">
+                +{formatCurrency(stats?.stale_nudge_increase_amount || 0)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-red-600 text-xs font-semibold">↓</span>
+              <span className="text-red-700 font-bold text-sm">
+                {summary?.decrease_within_strategy || 0}
+              </span>
+              <span className="text-red-600 text-xs">
+                -{formatCurrency(stats?.stale_nudge_decrease_amount || 0)}
+              </span>
+            </div>
+          </div>
+        </div>
 
         {summary?.data_issues > 0 && (
           <StatCard
@@ -264,7 +286,7 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-neutral-700">
-                  Stale Nudge Increases
+                  Price Refresh Increases
                 </p>
                 <p className="text-sm font-semibold text-neutral-900">
                   {summary?.increase_within_strategy || 0}
@@ -285,7 +307,7 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-neutral-700">
-                  Stale Nudge Decreases
+                  Price Refresh Decreases
                 </p>
                 <p className="text-sm font-semibold text-neutral-900">
                   {summary?.decrease_within_strategy || 0}
@@ -346,7 +368,9 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
                   <span className="font-semibold text-red-900 min-w-fit">
                     {row.stock_id || "MISSING"}
                   </span>
-                  <span className="text-red-700 flex-1 break-words">{row.reason}</span>
+                  <span className="text-red-700 flex-1 break-words">
+                    {row.reason}
+                  </span>
                 </div>
               ))}
           </div>
@@ -359,86 +383,90 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
         </div>
       )}
 
-      {/* Sample Results Table */}
-      {results.sample_results && results.sample_results.length > 0 && (
-        <div className="bg-white rounded-xl border border-neutral-200/50 overflow-hidden shadow-lg">
-          <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-neutral-50/50">
-            <h3 className="font-bold text-base sm:text-lg text-neutral-900">Sample Results</h3>
-            <p className="text-xs sm:text-sm text-neutral-600 mt-1">
-              First 10 items from processed data
-            </p>
-          </div>
+      {/* Sample Results Table - Top 10 Data Issues */}
+      {results.sample_results &&
+        results.sample_results.filter(
+          (r) => r.reason && r.reason.includes("Data Error"),
+        ).length > 0 && (
+          <div className="bg-white rounded-xl border border-neutral-200/50 overflow-hidden shadow-lg">
+            <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-neutral-200 bg-[#914f9e] from-neutral-50 to-neutral-50/50">
+              <h3 className="font-bold text-base sm:text-lg text-neutral-900">
+                Top Data Issues
+              </h3>
+              <p className="text-xs sm:text-sm text-neutral-600 mt-1">
+                Top 10 data issue records from processed data
+              </p>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm min-w-[600px]">
-              <thead className="bg-gradient-to-r from-neutral-50 to-neutral-50/80 border-b-2 border-neutral-200">
-                <tr>
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
-                    Stock ID
-                  </th>
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
-                    Current
-                  </th>
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
-                    Target %
-                  </th>
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
-                    New Price
-                  </th>
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
-                    Change
-                  </th>
-                  <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
-                    Reason
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.sample_results
-                  .filter((r) => !r.reason || !r.reason.includes("Data Error"))
-                  .slice(0, 10)
-                  .map((row, idx) => {
-                    const change = row.new_price - row.current_price;
-                    return (
-                      <tr
-                        key={idx}
-                        className="border-b border-neutral-200 hover:bg-neutral-50/50 transition-colors"
-                      >
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 font-semibold text-neutral-900">
-                          {row.stock_id}
-                        </td>
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 text-neutral-700">
-                          £{(row.current_price || 0).toFixed(0)}
-                        </td>
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 text-neutral-700">
-                          {row.target_percent}%
-                        </td>
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 font-semibold text-neutral-900">
-                          £{(row.new_price || 0).toFixed(0)}
-                        </td>
-                        <td
-                          className={`px-3 sm:px-4 lg:px-6 py-3 font-semibold ${
-                            change > 0
-                              ? "text-green-700"
-                              : change < 0
-                                ? "text-red-700"
-                                : "text-neutral-700"
-                          }`}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs sm:text-sm min-w-[600px]">
+                <thead className="bg-[#914f9e] from-neutral-50 to-neutral-50/80 border-b-2 border-neutral-200">
+                  <tr>
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                      Stock ID
+                    </th>
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                      Current
+                    </th>
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                      Target %
+                    </th>
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                      New Price
+                    </th>
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                      Change
+                    </th>
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                      Issue
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.sample_results
+                    .filter((r) => r.reason && r.reason.includes("Data Error"))
+                    .slice(0, 10)
+                    .map((row, idx) => {
+                      const change = row.new_price - row.current_price;
+                      return (
+                        <tr
+                          key={idx}
+                          className="border-b border-neutral-200 hover:bg-red-50/30 transition-colors"
                         >
-                          {change > 0 ? "+" : ""}
-                          £{(change || 0).toFixed(0)}
-                        </td>
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 text-xs text-neutral-600 break-words max-w-xs">
-                          {row.reason}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 font-semibold text-neutral-900">
+                            {row.stock_id}
+                          </td>
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 text-neutral-700">
+                            £{(row.current_price || 0).toFixed(0)}
+                          </td>
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 text-neutral-700">
+                            {row.target_percent}%
+                          </td>
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 font-semibold text-neutral-900">
+                            £{(row.new_price || 0).toFixed(0)}
+                          </td>
+                          <td
+                            className={`px-3 sm:px-4 lg:px-6 py-3 font-semibold ${
+                              change > 0
+                                ? "text-green-700"
+                                : change < 0
+                                  ? "text-red-700"
+                                  : "text-neutral-700"
+                            }`}
+                          >
+                            {change > 0 ? "+" : ""}£{(change || 0).toFixed(0)}
+                          </td>
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 text-xs text-red-600 break-words max-w-xs">
+                            {row.reason}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }
