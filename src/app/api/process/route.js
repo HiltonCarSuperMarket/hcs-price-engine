@@ -290,49 +290,95 @@ function parseFloat_safe(val) {
 
 function calculateStatistics(results) {
   const totalStocks = results.length;
+
   const notChange = results.filter(
     (r) => r.reason === "Within strategy",
   ).length;
+
   const priceIncrease = results.filter(
     (r) => r.reason && r.reason.includes("Increase to target"),
   ).length;
+
   const priceDecrease = results.filter(
     (r) => r.reason && r.reason.includes("Decrease to target"),
   ).length;
+
   const totalWithinStrategy = results.filter(
     (r) => r.reason && r.reason.includes("Within strategy"),
   ).length;
+
   const increaseWithinStrategy = results.filter(
     (r) =>
       r.reason &&
       r.reason.includes("Stale nudge") &&
       r.new_price - r.current_price > 0,
   ).length;
+
   const decreaseWithinStrategy = results.filter(
     (r) =>
       r.reason &&
       r.reason.includes("Stale nudge") &&
       r.new_price - r.current_price <= 0,
   ).length;
+
   const dataIssues = results.filter(
     (r) => r.reason && r.reason.includes("Data Error"),
   ).length;
 
+  // Existing total impact
   const totalIncrement = results.reduce((sum, r) => {
     const change = r.new_price - r.current_price;
     return sum + (change > 0 ? change : 0);
   }, 0);
+
   const totalDrop = results.reduce((sum, r) => {
     const change = r.new_price - r.current_price;
     return sum + (change < 0 ? -change : 0);
   }, 0);
+
   const netImpact = totalIncrement - totalDrop;
+
+  // ✅ NEW: Amount calculations
+  const increaseToTargetAmount = results.reduce((sum, r) => {
+    if (r.reason && r.reason.includes("Increase to target")) {
+      return sum + (r.new_price - r.current_price);
+    }
+    return sum;
+  }, 0);
+
+  const decreaseToTargetAmount = results.reduce((sum, r) => {
+    if (r.reason && r.reason.includes("Decrease to target")) {
+      return sum + (r.new_price - r.current_price);
+    }
+    return sum;
+  }, 0);
+
+  const staleNudgeIncreaseAmount = results.reduce((sum, r) => {
+    const change = r.new_price - r.current_price;
+    if (r.reason && r.reason.includes("Stale nudge") && change > 0) {
+      return sum + change;
+    }
+    return sum;
+  }, 0);
+
+  const staleNudgeDecreaseAmount = results.reduce((sum, r) => {
+    const change = r.new_price - r.current_price;
+    if (r.reason && r.reason.includes("Stale nudge") && change <= 0) {
+      return sum + change; // will be negative or zero
+    }
+    return sum;
+  }, 0);
 
   return {
     stats: {
       total_drop: totalDrop,
       total_increment: totalIncrement,
       net_impact: netImpact,
+
+      increase_to_target_amount: increaseToTargetAmount,
+      decrease_to_target_amount: decreaseToTargetAmount,
+      stale_nudge_increase_amount: staleNudgeIncreaseAmount,
+      stale_nudge_decrease_amount: staleNudgeDecreaseAmount,
     },
     summary: {
       total_stocks: totalStocks,
