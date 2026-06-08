@@ -179,6 +179,22 @@ class PricingEngine {
 
   calculateNewPrice(stock) {
     try {
+      // Gate check: Skip ALL processing if not enough days since last price change
+      // NaN means new record (no previous price change) — always process those
+      if (!isNaN(stock.days_since_last_change) && stock.days_since_last_change < this.config.stale_days) {
+        return {
+          stock_id: stock.stock_id,
+          current_price: stock.current_price,
+          reference_price: 0,
+          target_percent: 0,
+          target_price: 0,
+          new_price: stock.current_price,
+          reason: `Skipped  only ${stock.days_since_last_change} day(s) since last change (threshold: ${this.config.stale_days} days)`,
+          age_days: stock.age_days,
+          at_rating: stock.rating_band,
+        };
+      }
+
       const { refVal, targetPercent, targetPrice } =
         this.calculateTarget(stock);
       const withinStrategy = this.isWithinStrategy(
@@ -191,50 +207,48 @@ class PricingEngine {
       let reason = "No change";
 
       if (withinStrategy) {
-        if (stock.days_since_last_change >= this.config.stale_days) {
-          const nudgeAmt =
-            this.config.nudge_type === "percent"
-              ? refVal * (this.config.nudge_value / 100)
-              : this.config.nudge_value;
+        // Within strategy — apply nudge to refresh the price
+        const nudgeAmt =
+          this.config.nudge_type === "percent"
+            ? refVal * (this.config.nudge_value / 100)
+            : this.config.nudge_value;
 
-          let lowerLimit, upperLimit;
-          if (this.config.tolerance_type === "percent") {
-            lowerLimit =
-              refVal * ((targetPercent - this.config.tolerance_value) / 100);
-            upperLimit =
-              refVal * ((targetPercent + this.config.tolerance_value) / 100);
-          } else {
-            lowerLimit = targetPrice - this.config.tolerance_value;
-            upperLimit = targetPrice + this.config.tolerance_value;
-          }
-
-          const priceDrop = stock.current_price - nudgeAmt;
-          const priceAdd = stock.current_price + nudgeAmt;
-
-          const dropValid = priceDrop >= lowerLimit && priceDrop <= upperLimit;
-          const addValid = priceAdd >= lowerLimit && priceAdd <= upperLimit;
-
-          let bestNudge = null;
-          const pref = (this.config.nudge_preference || "drop").toLowerCase();
-
-          if (pref === "drop") {
-            bestNudge = dropValid ? priceDrop : addValid ? priceAdd : null;
-          } else if (pref === "add") {
-            bestNudge = addValid ? priceAdd : dropValid ? priceDrop : null;
-          } else {
-            bestNudge = dropValid ? priceDrop : addValid ? priceAdd : null;
-          }
-
-          if (bestNudge) {
-            finalPrice = this.applyRounding(bestNudge);
-            reason = `Stale nudge (${stock.days_since_last_change} days) - Within strategy`;
-          } else {
-            reason = `Within strategy (Stale ${stock.days_since_last_change} days but nudge fails tolerance)`;
-          }
+        let lowerLimit, upperLimit;
+        if (this.config.tolerance_type === "percent") {
+          lowerLimit =
+            refVal * ((targetPercent - this.config.tolerance_value) / 100);
+          upperLimit =
+            refVal * ((targetPercent + this.config.tolerance_value) / 100);
         } else {
-          reason = "Within strategy";
+          lowerLimit = targetPrice - this.config.tolerance_value;
+          upperLimit = targetPrice + this.config.tolerance_value;
+        }
+
+        const priceDrop = stock.current_price - nudgeAmt;
+        const priceAdd = stock.current_price + nudgeAmt;
+
+        const dropValid = priceDrop >= lowerLimit && priceDrop <= upperLimit;
+        const addValid = priceAdd >= lowerLimit && priceAdd <= upperLimit;
+
+        let bestNudge = null;
+        const pref = (this.config.nudge_preference || "drop").toLowerCase();
+
+        if (pref === "drop") {
+          bestNudge = dropValid ? priceDrop : addValid ? priceAdd : null;
+        } else if (pref === "add") {
+          bestNudge = addValid ? priceAdd : dropValid ? priceDrop : null;
+        } else {
+          bestNudge = dropValid ? priceDrop : addValid ? priceAdd : null;
+        }
+
+        if (bestNudge) {
+          finalPrice = this.applyRounding(bestNudge);
+          reason = `Nudge applied (${stock.days_since_last_change} days) - Within strategy`;
+        } else {
+          reason = `Within strategy (${stock.days_since_last_change} days but nudge exceeds tolerance bounds)`;
         }
       } else {
+        // NOT within strategy — move directly to target price
         const roundedTarget = this.applyRounding(targetPrice);
         finalPrice = roundedTarget;
 
@@ -292,7 +306,10 @@ function calculateStatistics(results) {
   const totalStocks = results.length;
 
   const notChange = results.filter(
-    (r) => r.reason === "Within strategy",
+    (r) =>
+      r.reason &&
+      r.reason.includes("Within strategy") &&
+      !r.reason.includes("Nudge applied"),
   ).length;
 
   const priceIncrease = results.filter(
@@ -310,19 +327,23 @@ function calculateStatistics(results) {
   const increaseWithinStrategy = results.filter(
     (r) =>
       r.reason &&
-      r.reason.includes("Stale nudge") &&
+      r.reason.includes("Nudge applied") &&
       r.new_price - r.current_price > 0,
   ).length;
 
   const decreaseWithinStrategy = results.filter(
     (r) =>
       r.reason &&
-      r.reason.includes("Stale nudge") &&
+      r.reason.includes("Nudge applied") &&
       r.new_price - r.current_price <= 0,
   ).length;
 
   const dataIssues = results.filter(
     (r) => r.reason && r.reason.includes("Data Error"),
+  ).length;
+
+  const skipped = results.filter(
+    (r) => r.reason && r.reason.includes("Skipped"),
   ).length;
 
   // Existing total impact
@@ -355,7 +376,7 @@ function calculateStatistics(results) {
 
   const staleNudgeIncreaseAmount = results.reduce((sum, r) => {
     const change = r.new_price - r.current_price;
-    if (r.reason && r.reason.includes("Stale nudge") && change > 0) {
+    if (r.reason && r.reason.includes("Nudge applied") && change > 0) {
       return sum + change;
     }
     return sum;
@@ -363,7 +384,7 @@ function calculateStatistics(results) {
 
   const staleNudgeDecreaseAmount = results.reduce((sum, r) => {
     const change = r.new_price - r.current_price;
-    if (r.reason && r.reason.includes("Stale nudge") && change <= 0) {
+    if (r.reason && r.reason.includes("Nudge applied") && change <= 0) {
       return sum + change; // will be negative or zero
     }
     return sum;
@@ -393,6 +414,7 @@ function calculateStatistics(results) {
       not_change: notChange,
       price_increase: priceIncrease,
       price_decrease: priceDecrease,
+      skipped: skipped,
     },
     sample_results: results.slice(0, 10),
   };
@@ -521,8 +543,11 @@ export async function POST(request) {
       }
 
       // Add defaults for fields used by the pricing engine
-      const days_since_last_change =
-        parseInt(record["Days since last price change"] || 0) || 0;
+      // NaN means new record with no previous price change — these should be processed, not skipped
+      const rawDaysValue = record["Days since last price change"];
+      const days_since_last_change = (rawDaysValue != null && String(rawDaysValue).trim() !== "" && String(rawDaysValue).trim().toLowerCase() !== "nan")
+        ? (parseInt(rawDaysValue) || 0)
+        : NaN;
       const reference_price = currentPrice; // Will be calculated by engine, use current as fallback
 
       validRecords.push({

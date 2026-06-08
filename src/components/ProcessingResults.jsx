@@ -57,8 +57,8 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
 
         <StatCard
           label="No Change"
-          value={summary?.not_change || 0}
-          description="Within strategy"
+          value={summary?.skipped || 0}
+          description="Skipped – too recent to update"
           color="green"
         />
 
