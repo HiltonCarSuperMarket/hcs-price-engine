@@ -22,10 +22,15 @@ export default function Home() {
   const loadConfig = async () => {
     try {
       setIsLoadingConfig(true);
-      const response = await fetch("/api/config");
+      const response = await fetch("/api/config?type=strategy");
       const data = await response.json();
       if (data.success) {
-        setConfig(data.data);
+        const strategies = data.data || [];
+        const defaultStrategy =
+          strategies.find((s) => s.name === "Default Strategy") ||
+          strategies[0] ||
+          null;
+        setConfig(defaultStrategy);
       } else {
         toastUtils.error(data.error || "Failed to load configuration");
       }

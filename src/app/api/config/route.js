@@ -2,33 +2,42 @@ import { defaultConfig } from "@/lib/defaultConfig";
 import connectDB from "@/lib/mongodb";
 import { Strategy, Configuration } from "@/lib/models";
 
-// Initialize default strategy if none exists
-async function initializeDefaults() {
-  try {
-    const existingDefault = await Strategy.findOne({
-      name: "Default Strategy",
-    });
-    if (!existingDefault) {
-      await Strategy.create({
-        ...defaultConfig,
-        isActive: true,
-      });
-    }
-  } catch (error) {
-    console.error("Error initializing defaults:", error);
-  }
-}
-
 export async function GET(request) {
   try {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type"); // 'strategy', 'config', or 'all'
-    const id = searchParams.get("id"); // Strategy ID
+    const id = searchParams.get("id"); // Strategy ID or config ID
 
     if (type === "config") {
-      // Fetch global configurations
+      if (id) {
+        const configItem = await Configuration.findById(id);
+        if (!configItem) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Configuration not found",
+            }),
+            {
+              status: 404,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: configItem,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
       const configs = await Configuration.find();
       return new Response(
         JSON.stringify({
@@ -42,26 +51,39 @@ export async function GET(request) {
       );
     }
 
-    if (id) {
-      // Fetch specific strategy
-      const strategy = await Strategy.findById(id);
-      if (!strategy) {
+    if (type === "strategy") {
+      if (id) {
+        const strategy = await Strategy.findById(id);
+        if (!strategy) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Strategy not found",
+            }),
+            {
+              status: 404,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
         return new Response(
           JSON.stringify({
-            success: false,
-            error: "Strategy not found",
+            success: true,
+            data: strategy,
           }),
           {
-            status: 404,
+            status: 200,
             headers: { "Content-Type": "application/json" },
           },
         );
       }
 
+      const strategies = await Strategy.find();
       return new Response(
         JSON.stringify({
           success: true,
-          data: strategy,
+          data: strategies,
         }),
         {
           status: 200,
@@ -70,10 +92,68 @@ export async function GET(request) {
       );
     }
 
-    // Initialize defaults if needed
-    await initializeDefaults();
+    if (type === "all") {
+      const [configs, strategies] = await Promise.all([
+        Configuration.find(),
+        Strategy.find(),
+      ]);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            configurations: configs,
+            strategies,
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
 
-    // Fetch all strategies
+    if (id) {
+      const strategy = await Strategy.findById(id);
+      if (strategy) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: strategy,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      const configItem = await Configuration.findById(id);
+      if (configItem) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: configItem,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Resource not found",
+        }),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Default: return all strategies using the Strategy schema.
     const strategies = await Strategy.find();
 
     return new Response(
@@ -254,6 +334,8 @@ export async function POST(request) {
           { value, description, category },
           { new: true },
         );
+
+        console.log(savedConfig);
       } else {
         savedConfig = await Configuration.create({
           key,

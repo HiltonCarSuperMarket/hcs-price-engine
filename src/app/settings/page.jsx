@@ -341,9 +341,12 @@ export default function SettingsPage() {
                     Tolerance Type
                   </label>
                   <select
-                    value={config.tolerance_type || "percent"}
+                    value={globalConfigs.tolerance_type || "percent"}
                     onChange={(e) => {
-                      setConfig({ ...config, tolerance_type: e.target.value });
+                      setGlobalConfigs((prev) => ({
+                        ...prev,
+                        tolerance_type: e.target.value,
+                      }));
                     }}
                     className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                   >
@@ -354,7 +357,7 @@ export default function SettingsPage() {
                     onClick={() =>
                       saveGlobalConfig(
                         "tolerance_type",
-                        config.tolerance_type,
+                        globalConfigs.tolerance_type,
                         "Tolerance Type",
                         "tolerance",
                       )
@@ -372,12 +375,12 @@ export default function SettingsPage() {
                   <input
                     type="number"
                     step="0.1"
-                    value={config.tolerance_value || 0}
+                    value={globalConfigs.tolerance_value || 0}
                     onChange={(e) => {
-                      setConfig({
-                        ...config,
-                        tolerance_value: parseFloat(e.target.value),
-                      });
+                      setGlobalConfigs((prev) => ({
+                        ...prev,
+                        tolerance_value: parseFloat(e.target.value) || 0,
+                      }));
                     }}
                     className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                   />
@@ -385,7 +388,7 @@ export default function SettingsPage() {
                     onClick={() =>
                       saveGlobalConfig(
                         "tolerance_value",
-                        config.tolerance_value,
+                        globalConfigs.tolerance_value,
                         "Tolerance Value",
                         "tolerance",
                       )
@@ -404,9 +407,12 @@ export default function SettingsPage() {
                     Nudge Type
                   </label>
                   <select
-                    value={config.nudge_type || "percent"}
+                    value={globalConfigs.nudge_type || "percent"}
                     onChange={(e) => {
-                      setConfig({ ...config, nudge_type: e.target.value });
+                      setGlobalConfigs((prev) => ({
+                        ...prev,
+                        nudge_type: e.target.value,
+                      }));
                     }}
                     className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -418,7 +424,7 @@ export default function SettingsPage() {
                     onClick={() =>
                       saveGlobalConfig(
                         "nudge_type",
-                        config.nudge_type,
+                        globalConfigs.nudge_type,
                         "Nudge Type",
                         "nudge",
                       )
@@ -436,12 +442,12 @@ export default function SettingsPage() {
                   <input
                     type="number"
                     step="0.1"
-                    value={config.nudge_value || 0}
+                    value={globalConfigs.nudge_value || 0}
                     onChange={(e) => {
-                      setConfig({
-                        ...config,
-                        nudge_value: parseFloat(e.target.value),
-                      });
+                      setGlobalConfigs((prev) => ({
+                        ...prev,
+                        nudge_value: parseFloat(e.target.value) || 0,
+                      }));
                     }}
                     className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -449,7 +455,7 @@ export default function SettingsPage() {
                     onClick={() =>
                       saveGlobalConfig(
                         "nudge_value",
-                        config.nudge_value,
+                        globalConfigs.nudge_value,
                         "Nudge Value",
                         "nudge",
                       )
@@ -468,9 +474,12 @@ export default function SettingsPage() {
                     Rounding Mode
                   </label>
                   <select
-                    value={config.rounding_mode || "nearest"}
+                    value={globalConfigs.rounding_mode || "nearest"}
                     onChange={(e) => {
-                      setConfig({ ...config, rounding_mode: e.target.value });
+                      setGlobalConfigs((prev) => ({
+                        ...prev,
+                        rounding_mode: e.target.value,
+                      }));
                     }}
                     className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -482,7 +491,7 @@ export default function SettingsPage() {
                     onClick={() =>
                       saveGlobalConfig(
                         "rounding_mode",
-                        config.rounding_mode,
+                        globalConfigs.rounding_mode,
                         "Rounding Mode",
                         "system",
                       )
@@ -499,12 +508,12 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="number"
-                    value={config.stale_days || 7}
+                    value={globalConfigs.stale_days || 7}
                     onChange={(e) => {
-                      setConfig({
-                        ...config,
-                        stale_days: parseInt(e.target.value),
-                      });
+                      setGlobalConfigs((prev) => ({
+                        ...prev,
+                        stale_days: parseInt(e.target.value) || 0,
+                      }));
                     }}
                     className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -512,7 +521,7 @@ export default function SettingsPage() {
                     onClick={() =>
                       saveGlobalConfig(
                         "stale_days",
-                        config.stale_days,
+                        globalConfigs.stale_days,
                         "Stale Days",
                         "system",
                       )
