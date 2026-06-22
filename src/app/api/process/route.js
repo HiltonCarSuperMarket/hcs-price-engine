@@ -1,4 +1,6 @@
 import Papa from "papaparse";
+import connectDB from "@/lib/mongodb";
+import { Configuration } from "@/lib/models";
 
 // Pricing Engine Logic (ported from Python)
 class PricingEngine {
@@ -181,7 +183,10 @@ class PricingEngine {
     try {
       // Gate check: Skip ALL processing if not enough days since last price change
       // NaN means new record (no previous price change) — always process those
-      if (!isNaN(stock.days_since_last_change) && stock.days_since_last_change < this.config.stale_days) {
+      if (
+        !isNaN(stock.days_since_last_change) &&
+        stock.days_since_last_change < this.config.stale_days
+      ) {
         return {
           stock_id: stock.stock_id,
           current_price: stock.current_price,
@@ -421,6 +426,8 @@ function calculateStatistics(results) {
 }
 export async function POST(request) {
   try {
+    await connectDB();
+
     const formData = await request.formData();
     const file = formData.get("file");
     const configStr = formData.get("config");
@@ -429,8 +436,30 @@ export async function POST(request) {
       return Response.json({ error: "No file provided" }, { status: 400 });
     }
 
+    if (!configStr) {
+      return Response.json(
+        { error: "No configuration provided" },
+        { status: 400 },
+      );
+    }
+
     const text = await file.text();
     const config = JSON.parse(configStr);
+
+    const strategyConfig = Array.isArray(config) ? config[0] : config;
+    const configItems = await Configuration.find();
+    const globalConfig = configItems.reduce(
+      (acc, item) => ({
+        ...acc,
+        [item.key]: item.value,
+      }),
+      {},
+    );
+
+    const fullConfig = {
+      ...strategyConfig,
+      ...globalConfig,
+    };
 
     // Parse CSV using Papa Parse
     const parsed = Papa.parse(text, {
@@ -545,9 +574,12 @@ export async function POST(request) {
       // Add defaults for fields used by the pricing engine
       // NaN means new record with no previous price change — these should be processed, not skipped
       const rawDaysValue = record["Days since last price change"];
-      const days_since_last_change = (rawDaysValue != null && String(rawDaysValue).trim() !== "" && String(rawDaysValue).trim().toLowerCase() !== "nan")
-        ? (parseInt(rawDaysValue) || 0)
-        : NaN;
+      const days_since_last_change =
+        rawDaysValue != null &&
+        String(rawDaysValue).trim() !== "" &&
+        String(rawDaysValue).trim().toLowerCase() !== "nan"
+          ? parseInt(rawDaysValue) || 0
+          : NaN;
       const reference_price = currentPrice; // Will be calculated by engine, use current as fallback
 
       validRecords.push({
@@ -562,13 +594,6 @@ export async function POST(request) {
         reference_price: reference_price,
       });
     }
-
-    // Merge with default config if needed
-    const fullConfig = {
-      ...config[0],
-    };
-
-    // console.log(JSON.stringify(fullConfig, null, 2));
 
     const engine = new PricingEngine(fullConfig);
     const validResults = engine.processStocks(validRecords);
