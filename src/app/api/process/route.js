@@ -276,6 +276,7 @@ class PricingEngine {
         reason: reason,
         age_days: stock.age_days,
         at_rating: stock.rating_band,
+        days_since_last_change: stock.days_since_last_change,
       };
     } catch (error) {
       return {
@@ -288,6 +289,7 @@ class PricingEngine {
         reason: `Data Error: ${error.message}`,
         age_days: stock.age_days,
         at_rating: stock.rating_band,
+        days_since_last_change: stock.days_since_last_change,
       };
     }
   }
@@ -620,6 +622,7 @@ export async function POST(request) {
         "Amount change",
         "Days in Stock",
         "AT Rating",
+        "Days since last price change",
         "reason",
       ].join(","),
       ...results.map((r) => {
@@ -628,6 +631,7 @@ export async function POST(request) {
           return [
             r.stock_id || "MISSING",
             r.current_price || "",
+            "",
             "",
             "",
             "",
@@ -650,6 +654,7 @@ export async function POST(request) {
           amountChange.toFixed(0),
           r.age_days || "",
           r.at_rating || "",
+          r.days_since_last_change ?? "",
           `"${r.reason || "Unknown"}"`,
         ].join(",");
       }),
