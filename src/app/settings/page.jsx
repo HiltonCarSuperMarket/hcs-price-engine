@@ -474,7 +474,7 @@ export default function SettingsPage() {
                     Rounding Mode
                   </label>
                   <select
-                    value={globalConfigs.rounding_mode || "nearest"}
+                    value={globalConfigs.rounding_mode || "exact"}
                     onChange={(e) => {
                       setGlobalConfigs((prev) => ({
                         ...prev,
@@ -484,9 +484,49 @@ export default function SettingsPage() {
                     className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="exact">Exact</option>
-                    <option value="nearest">Nearest</option>
                     <option value="49/99">49/99 Pricing</option>
+                    <option value="ends_with_digit">
+                      Round to ending digit (0-9)
+                    </option>
                   </select>
+                  {globalConfigs.rounding_mode === "ends_with_digit" && (
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-neutral-700 mb-2">
+                        Ending Digit (0-9)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="9"
+                        step="1"
+                        value={globalConfigs.rounding_digit ?? 4}
+                        onChange={(e) => {
+                          const digit = Math.min(
+                            9,
+                            Math.max(0, parseInt(e.target.value, 10) || 0),
+                          );
+                          setGlobalConfigs((prev) => ({
+                            ...prev,
+                            rounding_digit: digit,
+                          }));
+                        }}
+                        className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={() =>
+                          saveGlobalConfig(
+                            "rounding_digit",
+                            globalConfigs.rounding_digit ?? 4,
+                            "Rounding Digit",
+                            "system",
+                          )
+                        }
+                        className="mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                      >
+                        Save Digit
+                      </button>
+                    </div>
+                  )}
                   <button
                     onClick={() =>
                       saveGlobalConfig(

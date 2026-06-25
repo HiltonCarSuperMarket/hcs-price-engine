@@ -7,7 +7,8 @@ export const defaultConfig = {
   stale_days: 7,
   nudge_type: "percent",
   nudge_value: 1,
-  rounding_mode: "nearest",
+  rounding_mode: "exact",
+  rounding_digit: 4,
   weekend_hold: true,
   phase_bands: {
     target: [0, 30],
