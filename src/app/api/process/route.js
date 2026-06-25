@@ -157,20 +157,22 @@ class PricingEngine {
       return candidates.reduce((prev, curr) =>
         Math.abs(curr - price) < Math.abs(prev - price) ? curr : prev,
       );
-    } else if (this.config.rounding_mode === "ends_with_4_9") {
+    } else if (this.config.rounding_mode === "ends_with_digit") {
       const val = Math.round(price);
-      const center = Math.floor(val);
+      const digit = Math.min(
+        9,
+        Math.max(0, parseInt(this.config.rounding_digit, 10) || 0),
+      );
       const candidates = [];
 
-      for (let i = center - 10; i <= center + 10; i++) {
+      for (let i = val - 10; i <= val + 10; i++) {
         if (i < 0) continue;
-        const s = String(i);
-        if (s.endsWith("4") || s.endsWith("9")) {
+        if (i % 10 === digit) {
           candidates.push(i);
         }
       }
 
-      if (candidates.length === 0) return center;
+      if (candidates.length === 0) return val;
       return candidates.reduce((prev, curr) =>
         Math.abs(curr - val) < Math.abs(prev - val) ? curr : prev,
       );
