@@ -44,6 +44,25 @@ const ConfigurationSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+const DailySummaryLogSchema = new mongoose.Schema(
+  {
+    dateStr: { type: String, required: true },
+    dateIso: { type: String, required: true, unique: true },
+    savedAt: { type: Date, required: true },
+    units: { type: Number, required: true },
+    noChange: { type: Number, required: true },
+    pcUp: { type: Number, required: true },
+    pcDown: { type: Number, required: true },
+    prUp: { type: Number, required: true },
+    prDown: { type: Number, required: true },
+    issues: { type: Number, default: 0 },
+    drop: { type: Number, required: true },
+    increase: { type: Number, required: true },
+    net: { type: Number, required: true },
+  },
+  { timestamps: true },
+);
+
 // Delete existing models to avoid conflicts during development
 if (mongoose.models.Strategy) {
   delete mongoose.models.Strategy;
@@ -51,8 +70,12 @@ if (mongoose.models.Strategy) {
 if (mongoose.models.Configuration) {
   delete mongoose.models.Configuration;
 }
+if (mongoose.models.DailySummaryLog) {
+  delete mongoose.models.DailySummaryLog;
+}
 
 const Strategy = mongoose.model("Strategy", StrategySchema);
 const Configuration = mongoose.model("Configuration", ConfigurationSchema);
+const DailySummaryLog = mongoose.model("DailySummaryLog", DailySummaryLogSchema);
 
-export { Strategy, Configuration };
+export { Strategy, Configuration, DailySummaryLog };

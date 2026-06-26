@@ -3,35 +3,38 @@ export default function StatCard({
   value,
   description,
   icon,
-  color = "blue",
+  color = "default",
 }) {
-  let colorClass = "bg-blue-50 border-blue-200 text-blue-700";
-  let accentClass = "text-blue-600";
+  const borderColors = {
+    default: "border-l-[#00dbcc]",
+    blue: "border-l-[#00dbcc]",
+    green: "border-l-emerald-500",
+    accent: "border-l-cyan-400",
+    warning: "border-l-amber-500",
+    red: "border-l-red-500",
+  };
 
-  if (color === "green") {
-    colorClass = "bg-green-50 border-green-200 text-green-700";
-    accentClass = "text-green-600";
-  } else if (color === "accent") {
-    colorClass = "bg-cyan-50 border-cyan-200 text-cyan-700";
-    accentClass = "text-cyan-600";
-  } else if (color === "warning") {
-    colorClass = "bg-amber-50 border-amber-200 text-amber-700";
-    accentClass = "text-amber-600";
-  } else if (color === "red") {
-    colorClass = "bg-red-50 border-red-200 text-red-700";
-    accentClass = "text-red-600";
-  }
+  const accentClass =
+    color === "green"
+      ? "text-emerald-400"
+      : color === "red"
+        ? "text-red-400"
+        : color === "warning"
+          ? "text-amber-400"
+          : "text-[#00dbcc]";
 
   return (
-    <div className={`rounded-lg border p-4 shadow-sm ${colorClass}`}>
-      <div className="flex items-start justify-between mb-3">
-        <p className="text-sm font-medium text-neutral-700">{label}</p>
+    <div
+      className={`bg-slate-800 border border-white/5 rounded-2xl p-4 border-l-4 ${borderColors[color] || borderColors.default} hover:border-teal-400/30 transition-all`}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          {label}
+        </p>
         {icon && <div className={accentClass}>{icon}</div>}
       </div>
-
-      <p className="text-3xl font-bold text-neutral-900 mb-1">{value}</p>
-
-      <p className="text-xs text-neutral-600">{description}</p>
+      <p className="text-2xl font-bold text-slate-50 mb-1">{value}</p>
+      <p className="text-xs text-slate-400">{description}</p>
     </div>
   );
 }
