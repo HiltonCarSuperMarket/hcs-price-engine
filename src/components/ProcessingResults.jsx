@@ -1,9 +1,14 @@
 "use client";
 
-import { Download, RotateCcw, TrendingUp, TrendingDown } from "lucide-react";
+import { useState } from "react";
+import { Download, RotateCcw, Save, Check } from "lucide-react";
 import StatCard from "./StatCard";
+import { toastUtils } from "@/lib/utils";
 
 export default function ProcessingResults({ results, onDownload, onReset }) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
   if (!results) return null;
 
   const { stats, summary } = results;
@@ -16,29 +21,82 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
   const totalDecreaseCount =
     summary.price_decrease + summary.decrease_within_strategy;
 
+  const handleSaveLog = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stats, summary }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to save log");
+      }
+
+      setSaved(true);
+      toastUtils.success(
+        data.updated
+          ? "Daily log updated for today"
+          : "Daily log saved successfully",
+      );
+    } catch (err) {
+      toastUtils.error(err.message || "Failed to save log");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Header with Reset and Download */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-[#914f9e] from-neutral-900 to-blue-800 bg-clip-text text-transparent">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-50">
             Processing Complete
           </h2>
-          <p className="text-sm sm:text-base text-neutral-600 mt-1">
+          <p className="text-sm sm:text-base text-slate-400 mt-1">
             {summary?.total_stocks || 0} stocks processed
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <button
+            onClick={handleSaveLog}
+            disabled={isSaving || saved}
+            className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-semibold text-sm sm:text-base disabled:transform-none disabled:shadow-md ${
+              saved
+                ? "bg-emerald-600 text-white cursor-default"
+                : "bg-[#00dbcc] text-slate-900 hover:bg-teal-400"
+            }`}
+          >
+            {isSaving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : saved ? (
+              <>
+                <Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Log Saved</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Save Log</span>
+              </>
+            )}
+          </button>
+          <button
             onClick={onDownload}
-            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#914f9e] from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-semibold text-sm sm:text-base"
+            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-800 border border-white/10 text-slate-200 rounded-lg hover:border-[#00dbcc] transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-semibold text-sm sm:text-base"
           >
             <Download className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Download CSV</span>
           </button>
           <button
             onClick={onReset}
-            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-colors font-medium text-sm sm:text-base"
+            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-900 border border-white/10 text-slate-400 rounded-lg hover:border-slate-500 hover:text-slate-200 transition-colors font-medium text-sm sm:text-base"
           >
             <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>New Upload</span>
@@ -63,26 +121,26 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
         />
 
         {/* Target Price Card - Combined */}
-        <div className="rounded-lg border p-4 shadow-sm bg-white rounded-lg sm:p-4 shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-xs sm:text-sm font-medium text-neutral-600 mb-2">
+        <div className="bg-slate-800 border border-white/5 border-l-4 border-l-emerald-500 rounded-2xl p-4 hover:border-teal-400/30 transition-all">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-400 mb-2">
             Price Change
           </p>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-green-600 text-xs font-semibold">↑</span>
-              <span className="text-green-700 font-bold text-sm">
+              <span className="text-emerald-400 text-xs font-semibold">↑</span>
+              <span className="text-emerald-300 font-bold text-sm">
                 {summary?.price_increase || 0}
               </span>
-              <span className="text-green-600 text-xs">
+              <span className="text-emerald-400 text-xs">
                 +{formatCurrency(stats?.increase_to_target_amount || 0)}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-red-600 text-xs font-semibold">↓</span>
-              <span className="text-red-700 font-bold text-sm">
+              <span className="text-red-400 text-xs font-semibold">↓</span>
+              <span className="text-red-300 font-bold text-sm">
                 {summary?.price_decrease || 0}
               </span>
-              <span className="text-red-600 text-xs">
+              <span className="text-red-400 text-xs">
                 -{formatCurrency(stats?.decrease_to_target_amount || 0)}
               </span>
             </div>
@@ -90,26 +148,26 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
         </div>
 
         {/* Stale Nudge Card - Combined */}
-        <div className="rounded-lg border p-4 shadow-sm bg-white rounded-lg sm:p-4 shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-xs sm:text-sm font-medium text-neutral-600 mb-2">
+        <div className="bg-slate-800 border border-white/5 border-l-4 border-l-[#00dbcc] rounded-2xl p-4 hover:border-teal-400/30 transition-all">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-400 mb-2">
             Price Refresh
           </p>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-green-600 text-xs font-semibold">↑</span>
-              <span className="text-green-700 font-bold text-sm">
+              <span className="text-emerald-400 text-xs font-semibold">↑</span>
+              <span className="text-emerald-300 font-bold text-sm">
                 {summary?.increase_within_strategy || 0}
               </span>
-              <span className="text-green-600 text-xs">
+              <span className="text-emerald-400 text-xs">
                 +{formatCurrency(stats?.stale_nudge_increase_amount || 0)}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-red-600 text-xs font-semibold">↓</span>
-              <span className="text-red-700 font-bold text-sm">
+              <span className="text-red-400 text-xs font-semibold">↓</span>
+              <span className="text-red-300 font-bold text-sm">
                 {summary?.decrease_within_strategy || 0}
               </span>
-              <span className="text-red-600 text-xs">
+              <span className="text-red-400 text-xs">
                 -{formatCurrency(stats?.stale_nudge_decrease_amount || 0)}
               </span>
             </div>
@@ -127,24 +185,24 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
       </div>
 
       {/* Financial Impact Section */}
-      <div className="bg-white rounded-xl border border-neutral-200/50 p-4 sm:p-6 lg:p-8 shadow-lg">
-        <h3 className="text-lg sm:text-xl font-bold text-neutral-900 mb-4 sm:mb-6">
+      <div className="bg-slate-800 border border-white/5 rounded-2xl p-4 sm:p-6 lg:p-8 shadow-xl">
+        <h3 className="text-lg sm:text-xl font-bold text-slate-50 mb-4 sm:mb-6">
           Financial Impact
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Total Drop */}
-          <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-            <p className="text-sm font-medium text-red-600 mb-2">
+          <div className="bg-red-950/40 rounded-xl p-4 border border-red-500/30">
+            <p className="text-sm font-medium text-red-400 mb-2">
               Total Price Drop
             </p>
-            <p className="text-3xl font-bold text-red-700">
+            <p className="text-3xl font-bold text-red-300">
               -{formatCurrency(stats?.total_drop || 0)}
             </p>
-            <p className="text-xs text-red-600 mt-2">
+            <p className="text-xs text-red-400 mt-2">
               {totalDecreaseCount} items decreased
             </p>
-            <p className="text-xs text-red-500 mt-1">
+            <p className="text-xs text-red-400/70 mt-1">
               Avg: -
               {formatCurrency(
                 (stats?.total_drop || 0) / Math.max(totalDecreaseCount || 1, 1),
@@ -153,17 +211,17 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
           </div>
 
           {/* Total Increment */}
-          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-            <p className="text-sm font-medium text-green-600 mb-2">
+          <div className="bg-emerald-950/40 rounded-xl p-4 border border-emerald-500/30">
+            <p className="text-sm font-medium text-emerald-400 mb-2">
               Total Price Increase
             </p>
-            <p className="text-3xl font-bold text-green-700">
+            <p className="text-3xl font-bold text-emerald-300">
               +{formatCurrency(stats?.total_increment || 0)}
             </p>
-            <p className="text-xs text-green-600 mt-2">
+            <p className="text-xs text-emerald-400 mt-2">
               {totalIncreaseCount} items increased
             </p>
-            <p className="text-xs text-green-500 mt-1">
+            <p className="text-xs text-emerald-400/70 mt-1">
               Avg: +
               {formatCurrency(
                 (stats?.total_increment || 0) /
@@ -174,17 +232,17 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
 
           {/* Net Impact */}
           <div
-            className={`rounded-lg p-4 border ${
+            className={`rounded-xl p-4 border ${
               (stats?.net_impact || 0) >= 0
-                ? "bg-blue-50 border-blue-200"
-                : "bg-orange-50 border-orange-200"
+                ? "bg-teal-950/40 border-[#00dbcc]/30"
+                : "bg-orange-950/40 border-orange-500/30"
             }`}
           >
             <p
               className={`text-sm font-medium mb-2 ${
                 (stats?.net_impact || 0) >= 0
-                  ? "text-blue-600"
-                  : "text-orange-600"
+                  ? "text-[#00dbcc]"
+                  : "text-orange-400"
               }`}
             >
               Net Financial Impact
@@ -192,8 +250,8 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <p
               className={`text-3xl font-bold ${
                 (stats?.net_impact || 0) >= 0
-                  ? "text-blue-700"
-                  : "text-orange-700"
+                  ? "text-teal-300"
+                  : "text-orange-300"
               }`}
             >
               {(stats?.net_impact || 0) >= 0 ? "+" : "-"}
@@ -202,8 +260,8 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <p
               className={`text-xs mt-2 ${
                 (stats?.net_impact || 0) >= 0
-                  ? "text-blue-600"
-                  : "text-orange-600"
+                  ? "text-[#00dbcc]"
+                  : "text-orange-400"
               }`}
             >
               Portfolio impact
@@ -213,8 +271,8 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
       </div>
 
       {/* Strategy Breakdown */}
-      <div className="bg-white rounded-xl border border-neutral-200/50 p-4 sm:p-6 lg:p-8 shadow-lg">
-        <h3 className="text-lg sm:text-xl font-bold text-neutral-900 mb-4 sm:mb-6">
+      <div className="bg-slate-800 border border-white/5 rounded-2xl p-4 sm:p-6 lg:p-8 shadow-xl">
+        <h3 className="text-lg sm:text-xl font-bold text-slate-50 mb-4 sm:mb-6">
           Strategy Breakdown
         </h3>
 
@@ -222,16 +280,14 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
           <div className="flex items-start gap-4">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-neutral-700">
-                  No Change
-                </p>
-                <p className="text-sm font-semibold text-neutral-900">
+                <p className="text-sm font-medium text-slate-400">No Change</p>
+                <p className="text-sm font-semibold text-slate-50">
                   {summary?.not_change || 0}
                 </p>
               </div>
-              <div className="w-full bg-neutral-200 rounded-full h-2">
+              <div className="w-full bg-slate-900 rounded-full h-2">
                 <div
-                  className="bg-green-500 h-2 rounded-full"
+                  className="bg-emerald-500 h-2 rounded-full"
                   style={{
                     width: `${((summary?.not_change || 0) / (summary?.total_stocks || 1)) * 100}%`,
                   }}
@@ -243,16 +299,16 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
           <div className="flex items-start gap-4">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-neutral-700">
+                <p className="text-sm font-medium text-slate-400">
                   Target Price Increases
                 </p>
-                <p className="text-sm font-semibold text-neutral-900">
+                <p className="text-sm font-semibold text-slate-50">
                   {summary?.price_increase || 0}
                 </p>
               </div>
-              <div className="w-full bg-neutral-200 rounded-full h-2">
+              <div className="w-full bg-slate-900 rounded-full h-2">
                 <div
-                  className="bg-green-500 h-2 rounded-full"
+                  className="bg-emerald-500 h-2 rounded-full"
                   style={{
                     width: `${((summary?.price_increase || 0) / (summary?.total_stocks || 1)) * 100}%`,
                   }}
@@ -264,14 +320,14 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
           <div className="flex items-start gap-4">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-neutral-700">
+                <p className="text-sm font-medium text-slate-400">
                   Target Price Decreases
                 </p>
-                <p className="text-sm font-semibold text-neutral-900">
+                <p className="text-sm font-semibold text-slate-50">
                   {summary?.price_decrease || 0}
                 </p>
               </div>
-              <div className="w-full bg-neutral-200 rounded-full h-2">
+              <div className="w-full bg-slate-900 rounded-full h-2">
                 <div
                   className="bg-red-500 h-2 rounded-full"
                   style={{
@@ -285,16 +341,16 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
           <div className="flex items-start gap-4">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-neutral-700">
+                <p className="text-sm font-medium text-slate-400">
                   Price Refresh Increases
                 </p>
-                <p className="text-sm font-semibold text-neutral-900">
+                <p className="text-sm font-semibold text-slate-50">
                   {summary?.increase_within_strategy || 0}
                 </p>
               </div>
-              <div className="w-full bg-neutral-200 rounded-full h-2">
+              <div className="w-full bg-slate-900 rounded-full h-2">
                 <div
-                  className="bg-green-500 h-2 rounded-full"
+                  className="bg-emerald-500 h-2 rounded-full"
                   style={{
                     width: `${((summary?.increase_within_strategy || 0) / (summary?.total_stocks || 1)) * 100}%`,
                   }}
@@ -306,14 +362,14 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
           <div className="flex items-start gap-4">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-neutral-700">
+                <p className="text-sm font-medium text-slate-400">
                   Price Refresh Decreases
                 </p>
-                <p className="text-sm font-semibold text-neutral-900">
+                <p className="text-sm font-semibold text-slate-50">
                   {summary?.decrease_within_strategy || 0}
                 </p>
               </div>
-              <div className="w-full bg-neutral-200 rounded-full h-2">
+              <div className="w-full bg-slate-900 rounded-full h-2">
                 <div
                   className="bg-red-500 h-2 rounded-full"
                   style={{
@@ -328,14 +384,14 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <div className="flex items-start gap-4">
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-neutral-700">
+                  <p className="text-sm font-medium text-slate-400">
                     Data Issues
                   </p>
-                  <p className="text-sm font-semibold text-neutral-900">
+                  <p className="text-sm font-semibold text-slate-50">
                     {summary?.data_issues || 0}
                   </p>
                 </div>
-                <div className="w-full bg-neutral-200 rounded-full h-2">
+                <div className="w-full bg-slate-900 rounded-full h-2">
                   <div
                     className="bg-red-500 h-2 rounded-full"
                     style={{
@@ -351,8 +407,8 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
 
       {/* Data Issues Section */}
       {summary?.data_issues > 0 && (
-        <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl border-2 border-red-200 p-4 sm:p-6 shadow-lg">
-          <h3 className="text-lg sm:text-xl font-bold text-red-900 mb-4">
+        <div className="bg-red-950/30 border border-red-500/30 rounded-2xl p-4 sm:p-6 shadow-xl">
+          <h3 className="text-lg sm:text-xl font-bold text-red-300 mb-4">
             Data Issues ({summary?.data_issues} records)
           </h3>
 
@@ -363,19 +419,19 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
               .map((row, idx) => (
                 <div
                   key={idx}
-                  className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-xs sm:text-sm bg-white rounded-lg p-3 sm:p-4 border border-red-100 shadow-sm"
+                  className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-xs sm:text-sm bg-slate-900/60 rounded-lg p-3 sm:p-4 border border-red-500/20"
                 >
-                  <span className="font-semibold text-red-900 min-w-fit">
+                  <span className="font-semibold text-red-300 min-w-fit">
                     {row.stock_id || "MISSING"}
                   </span>
-                  <span className="text-red-700 flex-1 break-words">
+                  <span className="text-red-400/90 flex-1 break-words">
                     {row.reason}
                   </span>
                 </div>
               ))}
           </div>
           {summary?.data_issues > 10 && (
-            <p className="text-xs sm:text-sm text-red-700 mt-4 font-medium">
+            <p className="text-xs sm:text-sm text-red-400 mt-4 font-medium">
               ... and {summary?.data_issues - 10} more issues (see downloaded
               CSV for complete list)
             </p>
@@ -388,36 +444,36 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
         results.sample_results.filter(
           (r) => r.reason && r.reason.includes("Data Error"),
         ).length > 0 && (
-          <div className="bg-white rounded-xl border border-neutral-200/50 overflow-hidden shadow-lg">
-            <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-neutral-200 bg-[#914f9e] from-neutral-50 to-neutral-50/50">
-              <h3 className="font-bold text-base sm:text-lg text-neutral-900">
+          <div className="bg-slate-800 border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+            <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-white/10">
+              <h3 className="font-bold text-base sm:text-lg text-slate-50">
                 Top Data Issues
               </h3>
-              <p className="text-xs sm:text-sm text-neutral-600 mt-1">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 Top 10 data issue records from processed data
               </p>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-xs sm:text-sm min-w-[600px]">
-                <thead className="bg-[#914f9e] from-neutral-50 to-neutral-50/80 border-b-2 border-neutral-200">
+                <thead className="bg-slate-950 border-b border-white/10">
                   <tr>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-[#00dbcc] whitespace-nowrap">
                       Stock ID
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-[#00dbcc] whitespace-nowrap">
                       Current
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-[#00dbcc] whitespace-nowrap">
                       Target %
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-[#00dbcc] whitespace-nowrap">
                       New Price
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-[#00dbcc] whitespace-nowrap">
                       Change
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-neutral-700 whitespace-nowrap">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left font-semibold text-[#00dbcc] whitespace-nowrap">
                       Issue
                     </th>
                   </tr>
@@ -431,32 +487,32 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
                       return (
                         <tr
                           key={idx}
-                          className="border-b border-neutral-200 hover:bg-red-50/30 transition-colors"
+                          className="border-b border-white/5 hover:bg-red-950/20 transition-colors"
                         >
-                          <td className="px-3 sm:px-4 lg:px-6 py-3 font-semibold text-neutral-900">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 font-semibold text-slate-50">
                             {row.stock_id}
                           </td>
-                          <td className="px-3 sm:px-4 lg:px-6 py-3 text-neutral-700">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 text-slate-400">
                             £{(row.current_price || 0).toFixed(0)}
                           </td>
-                          <td className="px-3 sm:px-4 lg:px-6 py-3 text-neutral-700">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 text-slate-400">
                             {row.target_percent}%
                           </td>
-                          <td className="px-3 sm:px-4 lg:px-6 py-3 font-semibold text-neutral-900">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 font-semibold text-slate-50">
                             £{(row.new_price || 0).toFixed(0)}
                           </td>
                           <td
                             className={`px-3 sm:px-4 lg:px-6 py-3 font-semibold ${
                               change > 0
-                                ? "text-green-700"
+                                ? "text-emerald-400"
                                 : change < 0
-                                  ? "text-red-700"
-                                  : "text-neutral-700"
+                                  ? "text-red-400"
+                                  : "text-slate-400"
                             }`}
                           >
                             {change > 0 ? "+" : ""}£{(change || 0).toFixed(0)}
                           </td>
-                          <td className="px-3 sm:px-4 lg:px-6 py-3 text-xs text-red-600 break-words max-w-xs">
+                          <td className="px-3 sm:px-4 lg:px-6 py-3 text-xs text-red-400 break-words max-w-xs">
                             {row.reason}
                           </td>
                         </tr>
