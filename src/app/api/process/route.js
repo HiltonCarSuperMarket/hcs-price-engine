@@ -125,17 +125,45 @@ class PricingEngine {
     return { refVal, targetPercent, targetPrice };
   }
 
-  isWithinStrategy(price, refPrice, targetPercent) {
-    const targetPrice = refPrice * (targetPercent / 100);
-
+  getToleranceAbs(refVal) {
     if (this.config.tolerance_type === "percent") {
-      const currentPercent = (price / refPrice) * 100;
-      const diff = Math.abs(currentPercent - targetPercent);
-      return diff <= this.config.tolerance_value;
-    } else {
-      const diff = Math.abs(price - targetPrice);
-      return diff <= this.config.tolerance_value;
+      return refVal * (this.config.tolerance_value / 100);
     }
+    return this.config.tolerance_value;
+  }
+
+  getToleranceBounds(refVal, targetPercent, targetPrice) {
+    if (this.config.tolerance_type === "percent") {
+      return {
+        lowerLimit:
+          refVal * ((targetPercent - this.config.tolerance_value) / 100),
+        upperLimit:
+          refVal * ((targetPercent + this.config.tolerance_value) / 100),
+      };
+    }
+    return {
+      lowerLimit: targetPrice - this.config.tolerance_value,
+      upperLimit: targetPrice + this.config.tolerance_value,
+    };
+  }
+
+  applyDownNudge(currentPrice, refVal, targetPercent, targetPrice) {
+    const nudgeAmt =
+      this.config.nudge_type === "percent"
+        ? refVal * (this.config.nudge_value / 100)
+        : this.config.nudge_value;
+
+    const priceDrop = currentPrice - nudgeAmt;
+    const { lowerLimit, upperLimit } = this.getToleranceBounds(
+      refVal,
+      targetPercent,
+      targetPrice,
+    );
+
+    if (priceDrop >= lowerLimit && priceDrop <= upperLimit) {
+      return priceDrop;
+    }
+    return null;
   }
 
   applyRounding(price) {
@@ -183,88 +211,48 @@ class PricingEngine {
 
   calculateNewPrice(stock) {
     try {
-      // Gate check: Skip ALL processing if not enough days since last price change
-      // NaN means new record (no previous price change) — always process those
-      if (
-        !isNaN(stock.days_since_last_change) &&
-        stock.days_since_last_change < this.config.stale_days
-      ) {
-        return {
-          stock_id: stock.stock_id,
-          current_price: stock.current_price,
-          reference_price: 0,
-          target_percent: 0,
-          target_price: 0,
-          new_price: stock.current_price,
-          reason: `Skipped  only ${stock.days_since_last_change} day(s) since last change (threshold: ${this.config.stale_days} days)`,
-          age_days: stock.age_days,
-          at_rating: stock.rating_band,
-        };
-      }
-
       const { refVal, targetPercent, targetPrice } =
         this.calculateTarget(stock);
-      const withinStrategy = this.isWithinStrategy(
-        stock.current_price,
-        refVal,
-        targetPercent,
-      );
 
       let finalPrice = stock.current_price;
       let reason = "No change";
 
-      if (withinStrategy) {
-        // Within strategy — apply nudge to refresh the price
-        const nudgeAmt =
-          this.config.nudge_type === "percent"
-            ? refVal * (this.config.nudge_value / 100)
-            : this.config.nudge_value;
+      if (targetPrice > stock.current_price) {
+        finalPrice = this.applyRounding(targetPrice);
+        reason = `Increase to target (${targetPercent}%)`;
+      } else if (stock.current_price > targetPrice) {
+        const reduction = stock.current_price - targetPrice;
+        const toleranceAbs = this.getToleranceAbs(refVal);
 
-        let lowerLimit, upperLimit;
-        if (this.config.tolerance_type === "percent") {
-          lowerLimit =
-            refVal * ((targetPercent - this.config.tolerance_value) / 100);
-          upperLimit =
-            refVal * ((targetPercent + this.config.tolerance_value) / 100);
-        } else {
-          lowerLimit = targetPrice - this.config.tolerance_value;
-          upperLimit = targetPrice + this.config.tolerance_value;
-        }
-
-        const priceDrop = stock.current_price - nudgeAmt;
-        const priceAdd = stock.current_price + nudgeAmt;
-
-        const dropValid = priceDrop >= lowerLimit && priceDrop <= upperLimit;
-        const addValid = priceAdd >= lowerLimit && priceAdd <= upperLimit;
-
-        let bestNudge = null;
-        const pref = (this.config.nudge_preference || "drop").toLowerCase();
-
-        if (pref === "drop") {
-          bestNudge = dropValid ? priceDrop : addValid ? priceAdd : null;
-        } else if (pref === "add") {
-          bestNudge = addValid ? priceAdd : dropValid ? priceDrop : null;
-        } else {
-          bestNudge = dropValid ? priceDrop : addValid ? priceAdd : null;
-        }
-
-        if (bestNudge) {
-          finalPrice = this.applyRounding(bestNudge);
-          reason = `Nudge applied (${stock.days_since_last_change} days) - Within strategy`;
-        } else {
-          reason = `Within strategy (${stock.days_since_last_change} days but nudge exceeds tolerance bounds)`;
-        }
-      } else {
-        // NOT within strategy — move directly to target price
-        const roundedTarget = this.applyRounding(targetPrice);
-        finalPrice = roundedTarget;
-
-        if (finalPrice > stock.current_price) {
-          reason = `Increase to target (${targetPercent}%)`;
-        } else if (finalPrice < stock.current_price) {
+        if (reduction > toleranceAbs) {
+          finalPrice = this.applyRounding(targetPrice);
           reason = `Decrease to target (${targetPercent}%)`;
         } else {
-          reason = "Price OK (Rounded)";
+          const nudgedPrice = this.applyDownNudge(
+            stock.current_price,
+            refVal,
+            targetPercent,
+            targetPrice,
+          );
+          if (nudgedPrice !== null) {
+            finalPrice = this.applyRounding(nudgedPrice);
+            reason = "Nudge applied - Within strategy";
+          } else {
+            reason = "Within strategy (nudge exceeds tolerance bounds)";
+          }
+        }
+      } else {
+        const nudgedPrice = this.applyDownNudge(
+          stock.current_price,
+          refVal,
+          targetPercent,
+          targetPrice,
+        );
+        if (nudgedPrice !== null) {
+          finalPrice = this.applyRounding(nudgedPrice);
+          reason = "Nudge applied - Within strategy";
+        } else {
+          reason = "Within strategy";
         }
       }
 
@@ -351,10 +339,6 @@ function calculateStatistics(results) {
     (r) => r.reason && r.reason.includes("Data Error"),
   ).length;
 
-  const skipped = results.filter(
-    (r) => r.reason && r.reason.includes("Skipped"),
-  ).length;
-
   // Existing total impact
   const totalIncrement = results.reduce((sum, r) => {
     const change = r.new_price - r.current_price;
@@ -423,7 +407,6 @@ function calculateStatistics(results) {
       not_change: notChange,
       price_increase: priceIncrease,
       price_decrease: priceDecrease,
-      skipped: skipped,
     },
     sample_results: results.slice(0, 10),
   };

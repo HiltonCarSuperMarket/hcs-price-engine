@@ -35,10 +35,10 @@ export function toDateIso(date) {
 export function buildLogFromResults(results) {
   const { stats, summary } = results;
 
-  const noChange = (summary?.not_change || 0) + (summary?.skipped || 0);
+  const noChange = summary?.not_change || 0;
   const pcUp = summary?.price_increase || 0;
   const pcDown = summary?.price_decrease || 0;
-  const prUp = summary?.increase_within_strategy || 0;
+  const prUp = 0;
   const prDown = summary?.decrease_within_strategy || 0;
   const issues = summary?.data_issues || 0;
   const increase = Math.round(stats?.total_increment || 0);
@@ -176,7 +176,7 @@ export function aggregateLogs(logs) {
       increase: totalIncrease,
       net: totalNet,
       issues: totalIssues,
-      modifiedUp: totalPCUp + totalPRUp,
+      modifiedUp: totalPCUp,
       modifiedDown: totalPCDown + totalPRDown,
     },
     weekendAvgNet: avgNet(weekendLogs),

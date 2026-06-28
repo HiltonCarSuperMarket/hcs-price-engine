@@ -177,11 +177,11 @@ export default function DashboardPage() {
 
   const exportCSV = () => {
     const header =
-      "Date,Total Units,No Change,Price Change Up,Price Change Down,Price Refresh Up,Price Refresh Down,Data Issues,Total Price Drop,Total Price Increase,Net Financial Impact,Saved At\r\n";
+      "Date,Total Units,No Change,Price Change Up,Price Change Down,Price Refresh Down,Data Issues,Total Price Drop,Total Price Increase,Net Financial Impact,Saved At\r\n";
     const rows = filteredLogs
       .map(
         (row) =>
-          `${row.dateStr},${row.units},${row.noChange},${row.pcUp},${row.pcDown},${row.prUp},${row.prDown},${row.issues},${row.drop},${row.increase},${row.net},${row.savedAt || ""}`,
+          `${row.dateStr},${row.units},${row.noChange},${row.pcUp},${row.pcDown},${row.prDown},${row.issues},${row.drop},${row.increase},${row.net},${row.savedAt || ""}`,
       )
       .join("\r\n");
 
@@ -544,7 +544,6 @@ export default function DashboardPage() {
                         "No Change",
                         "PC Up",
                         "PC Down",
-                        "PR Up",
                         "PR Down",
                         "Issues",
                         "Total Drop",
@@ -576,7 +575,6 @@ export default function DashboardPage() {
                         <td className="px-4 py-3">{row.noChange}</td>
                         <td className="px-4 py-3">{row.pcUp}</td>
                         <td className="px-4 py-3">{row.pcDown}</td>
-                        <td className="px-4 py-3">{row.prUp}</td>
                         <td className="px-4 py-3">{row.prDown}</td>
                         <td className="px-4 py-3">{row.issues}</td>
                         <td className="px-4 py-3 text-red-400 font-semibold">

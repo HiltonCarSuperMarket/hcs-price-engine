@@ -16,8 +16,7 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
   const formatCurrency = (value) =>
     `£${value.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-  const totalIncreaseCount =
-    summary.price_increase + summary.increase_within_strategy;
+  const totalIncreaseCount = summary.price_increase;
   const totalDecreaseCount =
     summary.price_decrease + summary.decrease_within_strategy;
 
@@ -115,12 +114,12 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
 
         <StatCard
           label="No Change"
-          value={summary?.skipped || 0}
-          description="Skipped – too recent to update"
+          value={summary?.not_change || 0}
+          description="Within strategy – no price update"
           color="green"
         />
 
-        {/* Target Price Card - Combined */}
+        {/* Price Change Card */}
         <div className="bg-slate-800 border border-white/5 border-l-4 border-l-emerald-500 rounded-2xl p-4 hover:border-teal-400/30 transition-all">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-400 mb-2">
             Price Change
@@ -129,10 +128,10 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <div className="flex items-center justify-between">
               <span className="text-emerald-400 text-xs font-semibold">↑</span>
               <span className="text-emerald-300 font-bold text-sm">
-                {summary?.price_increase || 0}
+                {totalIncreaseCount || 0}
               </span>
               <span className="text-emerald-400 text-xs">
-                +{formatCurrency(stats?.increase_to_target_amount || 0)}
+                +{formatCurrency(stats?.total_increment || 0)}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -141,36 +140,25 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
                 {summary?.price_decrease || 0}
               </span>
               <span className="text-red-400 text-xs">
-                -{formatCurrency(stats?.decrease_to_target_amount || 0)}
+                -{formatCurrency(Math.abs(stats?.decrease_to_target_amount || 0))}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Stale Nudge Card - Combined */}
+        {/* Price Refresh Card - down nudge only */}
         <div className="bg-slate-800 border border-white/5 border-l-4 border-l-[#00dbcc] rounded-2xl p-4 hover:border-teal-400/30 transition-all">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-400 mb-2">
             Price Refresh
           </p>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-emerald-400 text-xs font-semibold">↑</span>
-              <span className="text-emerald-300 font-bold text-sm">
-                {summary?.increase_within_strategy || 0}
-              </span>
-              <span className="text-emerald-400 text-xs">
-                +{formatCurrency(stats?.stale_nudge_increase_amount || 0)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-red-400 text-xs font-semibold">↓</span>
-              <span className="text-red-300 font-bold text-sm">
-                {summary?.decrease_within_strategy || 0}
-              </span>
-              <span className="text-red-400 text-xs">
-                -{formatCurrency(stats?.stale_nudge_decrease_amount || 0)}
-              </span>
-            </div>
+          <div className="flex items-center justify-between">
+            <span className="text-red-400 text-xs font-semibold">↓</span>
+            <span className="text-red-300 font-bold text-sm">
+              {summary?.decrease_within_strategy || 0}
+            </span>
+            <span className="text-red-400 text-xs">
+              -{formatCurrency(Math.abs(stats?.stale_nudge_decrease_amount || 0))}
+            </span>
           </div>
         </div>
 
@@ -300,17 +288,17 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-slate-400">
-                  Target Price Increases
+                  Price Increases
                 </p>
                 <p className="text-sm font-semibold text-slate-50">
-                  {summary?.price_increase || 0}
+                  {totalIncreaseCount || 0}
                 </p>
               </div>
               <div className="w-full bg-slate-900 rounded-full h-2">
                 <div
                   className="bg-emerald-500 h-2 rounded-full"
                   style={{
-                    width: `${((summary?.price_increase || 0) / (summary?.total_stocks || 1)) * 100}%`,
+                    width: `${((totalIncreaseCount || 0) / (summary?.total_stocks || 1)) * 100}%`,
                   }}
                 />
               </div>
@@ -332,27 +320,6 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
                   className="bg-red-500 h-2 rounded-full"
                   style={{
                     width: `${((summary?.price_decrease || 0) / (summary?.total_stocks || 1)) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-slate-400">
-                  Price Refresh Increases
-                </p>
-                <p className="text-sm font-semibold text-slate-50">
-                  {summary?.increase_within_strategy || 0}
-                </p>
-              </div>
-              <div className="w-full bg-slate-900 rounded-full h-2">
-                <div
-                  className="bg-emerald-500 h-2 rounded-full"
-                  style={{
-                    width: `${((summary?.increase_within_strategy || 0) / (summary?.total_stocks || 1)) * 100}%`,
                   }}
                 />
               </div>

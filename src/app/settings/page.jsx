@@ -547,36 +547,6 @@ export default function SettingsPage() {
                     Save
                   </button>
                 </div>
-
-                <div>
-                  <label className={`${labelClass} mb-2`}>
-                    Stale Days Threshold
-                  </label>
-                  <input
-                    type="number"
-                    value={globalConfigs.stale_days || 7}
-                    onChange={(e) => {
-                      setGlobalConfigs((prev) => ({
-                        ...prev,
-                        stale_days: parseInt(e.target.value) || 0,
-                      }));
-                    }}
-                    className={inputClass}
-                  />
-                  <button
-                    onClick={() =>
-                      saveGlobalConfig(
-                        "stale_days",
-                        globalConfigs.stale_days,
-                        "Stale Days",
-                        "system",
-                      )
-                    }
-                    className={saveBtnClass}
-                  >
-                    Save
-                  </button>
-                </div>
               </div>
             </div>
           )}
