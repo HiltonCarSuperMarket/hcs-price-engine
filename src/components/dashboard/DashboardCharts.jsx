@@ -113,12 +113,6 @@ export function AdjustmentBreakdownChart({ data }) {
           fill={CHART_COLORS.green}
         />
         <Bar
-          dataKey="prUp"
-          name="Price Refresh Up"
-          stackId="a"
-          fill={CHART_COLORS.greenLight}
-        />
-        <Bar
           dataKey="pcDownNeg"
           name="Price Change Down"
           stackId="a"

@@ -6,10 +6,8 @@ import { ChevronDown, ChevronUp, Play } from "lucide-react";
 const DEFAULT_CONFIG = {
   tolerance_value: 0.2,
   tolerance_type: "percent",
-  stale_days: 7,
   nudge_value: 0.2,
   nudge_type: "percent",
-  nudge_preference: "add",
   rounding_mode: "49/99",
   rounding_digit: 4,
   weekend_hold: false,
@@ -25,7 +23,6 @@ export default function ConfigPanel({
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [expandedSections, setExpandedSections] = useState({
     tolerance: true,
-    stale: true,
     nudge: true,
     other: false,
   });
@@ -108,40 +105,6 @@ export default function ConfigPanel({
           )}
         </div>
 
-        {/* Stale Price Section */}
-        <div className="border border-neutral-200 rounded-lg overflow-hidden mb-4">
-          <button
-            onClick={() => toggleSection("stale")}
-            className="w-full px-4 py-3 flex items-center justify-between bg-neutral-50 hover:bg-neutral-100 transition-colors"
-          >
-            <h3 className="font-medium text-neutral-900">Stale Price Rules</h3>
-            {expandedSections.stale ? (
-              <ChevronUp className="w-5 h-5 text-neutral-600" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-neutral-600" />
-            )}
-          </button>
-
-          {expandedSections.stale && (
-            <div className="p-4 space-y-4 border-t border-neutral-200">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Days Until Stale
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={config.stale_days}
-                  onChange={(e) =>
-                    handleConfigChange("stale_days", parseInt(e.target.value))
-                  }
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Nudge Section */}
         <div className="border border-neutral-200 rounded-lg overflow-hidden mb-4">
           <button
@@ -194,23 +157,6 @@ export default function ConfigPanel({
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Nudge Preference
-                </label>
-                <select
-                  value={config.nudge_preference}
-                  onChange={(e) =>
-                    handleConfigChange("nudge_preference", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="add">Add (Increase)</option>
-                  <option value="drop">Drop (Decrease)</option>
-                  <option value="auto">Auto</option>
-                </select>
               </div>
             </div>
           )}

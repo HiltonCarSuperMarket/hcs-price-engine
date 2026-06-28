@@ -12,7 +12,6 @@ const StrategySchema = new mongoose.Schema(
     reference_column: String,
     tolerance_type: String,
     tolerance_value: Number,
-    stale_days: Number,
     nudge_type: String,
     nudge_value: Number,
     rounding_mode: String,
