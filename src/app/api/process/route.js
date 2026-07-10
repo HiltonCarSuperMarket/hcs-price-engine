@@ -1,6 +1,7 @@
 import Papa from "papaparse";
 import connectDB from "@/lib/mongodb";
 import { Configuration } from "@/lib/models";
+import { parseRoundingDigits, roundToEndingDigits } from "@/lib/roundingUtils";
 
 // Pricing Engine Logic (ported from Python)
 class PricingEngine {
@@ -186,24 +187,8 @@ class PricingEngine {
         Math.abs(curr - price) < Math.abs(prev - price) ? curr : prev,
       );
     } else if (this.config.rounding_mode === "ends_with_digit") {
-      const val = Math.round(price);
-      const digit = Math.min(
-        9,
-        Math.max(0, parseInt(this.config.rounding_digit, 10) || 0),
-      );
-      const candidates = [];
-
-      for (let i = val - 10; i <= val + 10; i++) {
-        if (i < 0) continue;
-        if (i % 10 === digit) {
-          candidates.push(i);
-        }
-      }
-
-      if (candidates.length === 0) return val;
-      return candidates.reduce((prev, curr) =>
-        Math.abs(curr - val) < Math.abs(prev - val) ? curr : prev,
-      );
+      const digits = parseRoundingDigits(this.config);
+      return roundToEndingDigits(price, digits);
     }
 
     return price;
