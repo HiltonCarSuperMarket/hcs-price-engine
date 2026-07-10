@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Play } from "lucide-react";
+import RoundingDigitsPicker from "@/components/RoundingDigitsPicker";
+import { parseRoundingDigits } from "@/lib/roundingUtils";
 
 const DEFAULT_CONFIG = {
   tolerance_value: 0.2,
@@ -9,7 +11,7 @@ const DEFAULT_CONFIG = {
   nudge_value: 0.2,
   nudge_type: "percent",
   rounding_mode: "49/99",
-  rounding_digit: 4,
+  rounding_digits: [4],
   weekend_hold: false,
   reference_column: "Retail valuation",
 };
@@ -210,28 +212,16 @@ export default function ConfigPanel({
                   <option value="exact">Exact</option>
                   <option value="49/99">49/99 Pricing</option>
                   <option value="ends_with_digit">
-                    Round to ending digit (0-9)
+                    Round to ending digit(s) (0-9)
                   </option>
                 </select>
                 {config.rounding_mode === "ends_with_digit" && (
                   <div className="mt-3">
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Ending Digit (0-9)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="9"
-                      step="1"
-                      value={config.rounding_digit ?? 4}
-                      onChange={(e) => {
-                        const digit = Math.min(
-                          9,
-                          Math.max(0, parseInt(e.target.value, 10) || 0),
-                        );
-                        handleConfigChange("rounding_digit", digit);
-                      }}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    <RoundingDigitsPicker
+                      digits={parseRoundingDigits(config)}
+                      onChange={(digits) =>
+                        handleConfigChange("rounding_digits", digits)
+                      }
                     />
                   </div>
                 )}

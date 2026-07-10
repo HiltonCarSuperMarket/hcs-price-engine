@@ -7,6 +7,8 @@ import Link from "next/link";
 import { toastUtils } from "@/lib/utils";
 import { ConfigSkeleton } from "@/components/SkeletonLoader";
 import { Skeleton } from "@/components/ui/skeleton";
+import RoundingDigitsPicker from "@/components/RoundingDigitsPicker";
+import { parseRoundingDigits } from "@/lib/roundingUtils";
 
 const inputClass =
   "w-full px-4 py-2.5 bg-slate-950 border border-white/10 text-slate-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00dbcc] focus:border-[#00dbcc] transition-all text-sm sm:text-base placeholder:text-slate-500";
@@ -492,44 +494,33 @@ export default function SettingsPage() {
                     <option value="exact">Exact</option>
                     <option value="49/99">49/99 Pricing</option>
                     <option value="ends_with_digit">
-                      Round to ending digit (0-9)
+                      Round to ending digit(s) (0-9)
                     </option>
                   </select>
                   {globalConfigs.rounding_mode === "ends_with_digit" && (
                     <div className="mt-3">
-                      <label className={`${labelClass} mb-2`}>
-                        Ending Digit (0-9)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="9"
-                        step="1"
-                        value={globalConfigs.rounding_digit ?? 4}
-                        onChange={(e) => {
-                          const digit = Math.min(
-                            9,
-                            Math.max(0, parseInt(e.target.value, 10) || 0),
-                          );
+                      <RoundingDigitsPicker
+                        variant="dark"
+                        digits={parseRoundingDigits(globalConfigs)}
+                        onChange={(digits) => {
                           setGlobalConfigs((prev) => ({
                             ...prev,
-                            rounding_digit: digit,
+                            rounding_digits: digits,
                           }));
                         }}
-                        className={inputClass}
                       />
                       <button
                         onClick={() =>
                           saveGlobalConfig(
-                            "rounding_digit",
-                            globalConfigs.rounding_digit ?? 4,
-                            "Rounding Digit",
+                            "rounding_digits",
+                            parseRoundingDigits(globalConfigs),
+                            "Rounding Digits",
                             "system",
                           )
                         }
                         className={saveBtnClass}
                       >
-                        Save Digit
+                        Save Digits
                       </button>
                     </div>
                   )}
