@@ -11,10 +11,18 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
 
   if (!results) return null;
 
-  const { stats, summary } = results;
+  const { stats, summary, processOptions } = results;
 
   const formatCurrency = (value) =>
     `£${value.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+  const directionLabel = processOptions
+    ? processOptions.includePriceUp && processOptions.includePriceDown
+      ? "Price Up & Price Down"
+      : processOptions.includePriceUp
+        ? "Price Up only"
+        : "Price Down only"
+    : null;
 
   const totalIncreaseCount = summary.price_increase;
   const totalDecreaseCount =
@@ -57,6 +65,11 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
           </h2>
           <p className="text-sm sm:text-base text-slate-400 mt-1">
             {summary?.total_stocks || 0} stocks processed
+            {directionLabel && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800 border border-white/10 text-[#00dbcc]">
+                {directionLabel}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">

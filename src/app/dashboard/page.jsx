@@ -9,6 +9,7 @@ import {
   TrendingDown,
   ArrowLeftRight,
   Settings as SettingsIcon,
+  Trash2,
 } from "lucide-react";
 import {
   NetImpactTrendChart,
@@ -18,6 +19,7 @@ import {
   CorrelationScatterChart,
   WeekendComparisonChart,
 } from "@/components/dashboard/DashboardCharts";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   aggregateLogs,
   enrichLog,
@@ -25,6 +27,7 @@ import {
   METRIC_OPTIONS,
   pearsonCorrelation,
 } from "@/lib/logUtils";
+import { toastUtils } from "@/lib/utils";
 
 function KpiCard({ label, value, sub, variant = "default" }) {
   const borderColors = {
@@ -67,6 +70,8 @@ export default function DashboardPage() {
   const [activePreset, setActivePreset] = useState("all");
   const [corrX, setCorrX] = useState("units");
   const [corrY, setCorrY] = useState("net");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -173,6 +178,33 @@ export default function DashboardPage() {
 
     setStartDate(start);
     setEndDate(end);
+  };
+
+  const handleDeleteLog = async () => {
+    if (!deleteTarget) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/logs?id=${deleteTarget._id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to delete log");
+      }
+
+      setLogs((prev) =>
+        prev.filter((log) => String(log._id) !== String(deleteTarget._id)),
+      );
+      setDeleteTarget(null);
+      toastUtils.success("Log deleted successfully");
+    } catch (err) {
+      console.error("Failed to delete log:", err);
+      toastUtils.error(err.message || "Failed to delete log");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const exportCSV = () => {
@@ -549,6 +581,7 @@ export default function DashboardPage() {
                         "Total Drop",
                         "Total Increase",
                         "Net Impact",
+                        "Actions",
                       ].map((h) => (
                         <th
                           key={h}
@@ -588,6 +621,16 @@ export default function DashboardPage() {
                         >
                           {formatCurrency(row.net, true)}
                         </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(row)}
+                            className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-950/40 transition-colors"
+                            title="Delete log"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -597,6 +640,22 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
+        title="Delete Log Entry"
+        description={
+          deleteTarget
+            ? `Are you sure you want to delete the log for ${deleteTarget.dateStr}? This action cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDeleteLog}
+        isLoading={isDeleting}
+        variant="destructive"
+      />
     </div>
   );
 }
