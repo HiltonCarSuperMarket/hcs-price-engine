@@ -2,6 +2,11 @@ import Papa from "papaparse";
 import connectDB from "@/lib/mongodb";
 import { Configuration } from "@/lib/models";
 import { parseRoundingDigits, roundToEndingDigits } from "@/lib/roundingUtils";
+import {
+  applyDirectionFilter,
+  buildCsvFromResults,
+  filterResultsForExport,
+} from "@/lib/processingUtils";
 
 // Pricing Engine Logic (ported from Python)
 class PricingEngine {
@@ -403,6 +408,7 @@ export async function POST(request) {
     const formData = await request.formData();
     const file = formData.get("file");
     const configStr = formData.get("config");
+    const optionsStr = formData.get("options");
 
     if (!file) {
       return Response.json({ error: "No file provided" }, { status: 400 });
@@ -417,6 +423,29 @@ export async function POST(request) {
 
     const text = await file.text();
     const config = JSON.parse(configStr);
+
+    let processOptions = { includePriceUp: true, includePriceDown: true };
+    if (optionsStr) {
+      try {
+        const parsed = JSON.parse(optionsStr);
+        processOptions = {
+          includePriceUp: parsed.includePriceUp !== false,
+          includePriceDown: parsed.includePriceDown !== false,
+        };
+      } catch {
+        return Response.json(
+          { error: "Invalid processing options" },
+          { status: 400 },
+        );
+      }
+    }
+
+    if (!processOptions.includePriceUp && !processOptions.includePriceDown) {
+      return Response.json(
+        { error: "Select at least one price direction" },
+        { status: 400 },
+      );
+    }
 
     const strategyConfig = Array.isArray(config) ? config[0] : config;
     const configItems = await Configuration.find();
@@ -568,7 +597,15 @@ export async function POST(request) {
     }
 
     const engine = new PricingEngine(fullConfig);
-    const validResults = engine.processStocks(validRecords);
+    const validResults = engine
+      .processStocks(validRecords)
+      .map((result) =>
+        applyDirectionFilter(
+          result,
+          processOptions.includePriceUp,
+          processOptions.includePriceDown,
+        ),
+      );
 
     // Combine valid results with invalid records (marked with data errors)
     const results = [...validResults, ...invalidRecords];
@@ -580,56 +617,8 @@ export async function POST(request) {
 
     console.log("Data Error count:", count);
 
-    // Convert results to CSV format with all required columns
-    const csvLines = [
-      [
-        "stock_id",
-        "current_price",
-        "reference_price",
-        "target_percent",
-        "target_price",
-        "new_price",
-        "Amount change",
-        "Days in Stock",
-        "AT Rating",
-        "Days since last price change",
-        "reason",
-      ].join(","),
-      ...results.map((r) => {
-        // Handle data error records that don't have all fields
-        if (r.reason && r.reason.startsWith("Data Error")) {
-          return [
-            r.stock_id || "MISSING",
-            r.current_price || "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            `"${r.reason}"`,
-          ].join(",");
-        }
-
-        const amountChange = r.new_price - r.current_price;
-        return [
-          r.stock_id,
-          Math.round(r.current_price || 0),
-          Math.round(r.reference_price || 0),
-          `${r.target_percent.toFixed(2)}%`,
-          Math.round(r.target_price || 0),
-          Math.round(r.new_price || 0),
-          amountChange.toFixed(0),
-          r.age_days || "",
-          r.at_rating || "",
-          r.days_since_last_change ?? "",
-          `"${r.reason || "Unknown"}"`,
-        ].join(",");
-      }),
-    ];
-    const csv = csvLines.join("\n");
+    const exportResults = filterResultsForExport(results, processOptions);
+    const csv = buildCsvFromResults(exportResults);
 
     const statistics = calculateStatistics(results);
 
@@ -637,6 +626,7 @@ export async function POST(request) {
       ...statistics,
       csv,
       results,
+      processOptions,
     });
   } catch (error) {
     console.error("Processing error:", error);

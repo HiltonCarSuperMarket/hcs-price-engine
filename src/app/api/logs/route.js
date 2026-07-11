@@ -35,6 +35,39 @@ export async function GET(request) {
   }
 }
 
+export async function DELETE(request) {
+  try {
+    await connectDB();
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return Response.json(
+        { success: false, error: "Log ID is required" },
+        { status: 400 },
+      );
+    }
+
+    const deleted = await DailySummaryLog.findByIdAndDelete(id);
+
+    if (!deleted) {
+      return Response.json(
+        { success: false, error: "Log not found" },
+        { status: 404 },
+      );
+    }
+
+    return Response.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete log:", error);
+    return Response.json(
+      { success: false, error: error.message || "Failed to delete log" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request) {
   try {
     await connectDB();
