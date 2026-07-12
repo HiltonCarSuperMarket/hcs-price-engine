@@ -2,13 +2,17 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import { HcsBrandNavbar } from "@/components/hcs-brand-navbar";
 
 export function PageSkeleton() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="bg-gradient-to-br from-[#300263] to-indigo-950 border-b-2 border-[#00dbcc] px-6 py-5">
-        <Skeleton className="h-8 w-48 bg-slate-700" />
-      </div>
+      <HcsBrandNavbar
+        title="Pricing Engine"
+        subtitle="HCS Pricing Hub"
+        homeHref="/"
+        right={<Skeleton className="h-9 w-40 rounded-lg bg-white/20" />}
+      />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="space-y-8">
           <div className="space-y-3">

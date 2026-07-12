@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
-  LayoutDashboard,
   Download,
   TrendingUp,
   TrendingDown,
@@ -11,6 +10,11 @@ import {
   Settings as SettingsIcon,
   Trash2,
 } from "lucide-react";
+import {
+  HcsBrandNavbar,
+  navActionClass,
+  navActionPrimaryClass,
+} from "@/components/hcs-brand-navbar";
 import {
   NetImpactTrendChart,
   AdjustmentBreakdownChart,
@@ -230,43 +234,23 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-      {/* Header */}
-      <header className="bg-gradient-to-br from-[#300263] to-indigo-950 border-b-2 border-[#00dbcc] sticky top-0 z-10 shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <Link href="/" className="flex items-center gap-2 mb-1">
-                <img src="/logo-hilton.svg" alt="Hilton logo" width={180} height={28} />
-              </Link>
-              <p className="text-[10px] font-bold tracking-[3px] text-purple-300 uppercase">
-                Supermarket
-              </p>
-            </div>
-            <div className="flex flex-col sm:items-end gap-3">
-              <div className="flex items-center gap-2">
-                <LayoutDashboard className="w-5 h-5 text-[#00dbcc]" />
-                <h1 className="text-lg font-semibold">Pricing Engine Analysis</h1>
-              </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <Link
-                  href="/"
-                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#00dbcc] text-slate-900 rounded-lg hover:bg-teal-400 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-semibold"
-                >
-                  <span>Processor</span>
-                </Link>
-                <Link
-                  href="/settings"
-                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-800 border border-white/10 text-slate-200 rounded-lg hover:border-[#00dbcc] transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-medium"
-                >
-                  <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden sm:inline">Configuration</span>
-                  <span className="sm:hidden">Config</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <HcsBrandNavbar
+        title="Pricing Engine Analysis"
+        subtitle="HCS Pricing Hub"
+        homeHref="/"
+        right={
+          <>
+            <Link href="/" className={navActionPrimaryClass}>
+              <span>Processor</span>
+            </Link>
+            <Link href="/settings" className={navActionClass}>
+              <SettingsIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Configuration</span>
+              <span className="sm:hidden">Config</span>
+            </Link>
+          </>
+        }
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* Filters */}

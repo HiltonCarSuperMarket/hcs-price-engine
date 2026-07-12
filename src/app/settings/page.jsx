@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { ChevronDown, Plus, X, Save, LayoutDashboard } from "lucide-react";
-import { Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { toastUtils } from "@/lib/utils";
 import { ConfigSkeleton } from "@/components/SkeletonLoader";
 import { Skeleton } from "@/components/ui/skeleton";
 import RoundingDigitsPicker from "@/components/RoundingDigitsPicker";
 import { parseRoundingDigits } from "@/lib/roundingUtils";
+import {
+  HcsBrandNavbar,
+  navActionClass,
+  navActionPrimaryClass,
+} from "@/components/hcs-brand-navbar";
 
 const inputClass =
   "w-full px-4 py-2.5 bg-slate-950 border border-white/10 text-slate-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00dbcc] focus:border-[#00dbcc] transition-all text-sm sm:text-base placeholder:text-slate-500";
@@ -260,11 +264,12 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-        <header className="bg-gradient-to-br from-[#300263] to-indigo-950 border-b-2 border-[#00dbcc] sticky top-0 z-10 shadow-xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
-            <Skeleton className="h-8 w-48 bg-slate-700" />
-          </div>
-        </header>
+        <HcsBrandNavbar
+          title="Configuration"
+          subtitle="HCS Pricing Hub"
+          homeHref="/"
+          right={<Skeleton className="h-9 w-40 rounded-lg bg-white/20" />}
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <ConfigSkeleton />
         </div>
@@ -286,47 +291,23 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-      <header className="bg-gradient-to-br from-[#300263] to-indigo-950 border-b-2 border-[#00dbcc] sticky top-0 z-10 shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <Link href="/" className="flex items-center gap-2 mb-1">
-                <img
-                  src="/logo-hilton.svg"
-                  alt="Hilton logo"
-                  width={180}
-                  height={28}
-                />
-              </Link>
-              <p className="text-[10px] font-bold tracking-[3px] text-purple-300 uppercase">
-                Supermarket
-              </p>
-            </div>
-            <div className="flex flex-col sm:items-end gap-3">
-              <div className="flex items-center gap-2">
-                <SettingsIcon className="w-5 h-5 text-[#00dbcc]" />
-                <h1 className="text-lg font-semibold">Configuration</h1>
-              </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <Link
-                  href="/dashboard"
-                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#00dbcc] text-slate-900 rounded-lg hover:bg-teal-400 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-semibold"
-                >
-                  <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Dashboard</span>
-                </Link>
-                <Link
-                  href="/strategy"
-                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-800 border border-white/10 text-slate-200 rounded-lg hover:border-[#00dbcc] transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-medium"
-                >
-                  <span className="hidden sm:inline">Strategy Configuration</span>
-                  <span className="sm:hidden">Strategy</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <HcsBrandNavbar
+        title="Configuration"
+        subtitle="HCS Pricing Hub"
+        homeHref="/"
+        right={
+          <>
+            <Link href="/dashboard" className={navActionPrimaryClass}>
+              <LayoutDashboard className="h-4 w-4" />
+              <span>Dashboard</span>
+            </Link>
+            <Link href="/strategy" className={navActionClass}>
+              <span className="hidden sm:inline">Strategy Configuration</span>
+              <span className="sm:hidden">Strategy</span>
+            </Link>
+          </>
+        }
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Global Configuration Section */}
