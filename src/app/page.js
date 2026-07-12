@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Play, Settings as SettingsIcon, Sparkles } from "lucide-react";
+import { Play, Settings as SettingsIcon, LayoutDashboard } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
 import ProcessingResults from "@/components/ProcessingResults";
+import ProcessOptionsModal from "@/components/ProcessOptionsModal";
 import { toastUtils } from "@/lib/utils";
 import { PageSkeleton } from "@/components/SkeletonLoader";
 import { HcsBrandNavbar } from "@/components/hcs-brand-navbar";
@@ -15,6 +16,7 @@ export default function Home() {
   const [results, setResults] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [showProcessModal, setShowProcessModal] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -23,10 +25,15 @@ export default function Home() {
   const loadConfig = async () => {
     try {
       setIsLoadingConfig(true);
-      const response = await fetch("/api/config");
+      const response = await fetch("/api/config?type=strategy");
       const data = await response.json();
       if (data.success) {
-        setConfig(data.data);
+        const strategies = data.data || [];
+        const defaultStrategy =
+          strategies.find((s) => s.name === "Default Strategy") ||
+          strategies[0] ||
+          null;
+        setConfig(defaultStrategy);
       } else {
         toastUtils.error(data.error || "Failed to load configuration");
       }
@@ -46,7 +53,15 @@ export default function Home() {
     }
   };
 
-  const handleProcess = async () => {
+  const handleProcessClick = () => {
+    if (!uploadedFile || !config) {
+      toastUtils.error("Please upload a CSV file and configure settings");
+      return;
+    }
+    setShowProcessModal(true);
+  };
+
+  const handleProcess = async (processOptions) => {
     if (!uploadedFile || !config) {
       toastUtils.error("Please upload a CSV file and configure settings");
       return;
@@ -59,6 +74,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", uploadedFile);
       formData.append("config", JSON.stringify(config));
+      formData.append("options", JSON.stringify(processOptions));
 
       const response = await fetch("/api/process", {
         method: "POST",
@@ -74,6 +90,7 @@ export default function Home() {
       toastUtils.dismiss(loadingToast);
       toastUtils.success("File processed successfully!");
       setResults(data);
+      setShowProcessModal(false);
     } catch (err) {
       toastUtils.dismiss(loadingToast);
       toastUtils.error(err.message || "An error occurred during processing");
@@ -100,7 +117,14 @@ export default function Home() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "pricing_results.csv";
+      const opts = results.processOptions;
+      const suffix =
+        opts && !opts.includePriceUp
+          ? "price_down"
+          : opts && !opts.includePriceDown
+            ? "price_up"
+            : "all";
+      link.download = `pricing_results_${suffix}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -149,9 +173,9 @@ export default function Home() {
             {uploadedFile && config && (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 max-w-3xl mx-auto">
                 <button
-                  onClick={handleProcess}
+                  onClick={handleProcessClick}
                   disabled={isProcessing}
-                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-[#914f9e] from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none disabled:shadow-md text-sm sm:text-base"
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-[#00dbcc] text-slate-900 font-semibold rounded-lg hover:bg-teal-400 disabled:bg-teal-800/50 disabled:text-slate-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none disabled:shadow-md text-sm sm:text-base"
                 >
                   {isProcessing ? (
                     <>
@@ -166,8 +190,8 @@ export default function Home() {
                   )}
                 </button>
                 {isProcessing && (
-                  <div className="flex items-center justify-center gap-2 text-blue-600 bg-blue-50 rounded-lg px-4 py-3 border border-blue-200">
-                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="flex items-center justify-center gap-2 text-[#00dbcc] bg-slate-800 rounded-lg px-4 py-3 border border-[#00dbcc]/30">
+                    <div className="w-4 h-4 border-2 border-[#00dbcc] border-t-transparent rounded-full animate-spin" />
                     <span className="text-sm sm:text-base">
                       Processing your file...
                     </span>
@@ -184,6 +208,13 @@ export default function Home() {
           />
         )}
       </div>
+
+      <ProcessOptionsModal
+        open={showProcessModal}
+        onOpenChange={setShowProcessModal}
+        onConfirm={handleProcess}
+        isProcessing={isProcessing}
+      />
     </main>
   );
 }

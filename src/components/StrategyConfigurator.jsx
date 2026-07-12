@@ -6,6 +6,8 @@ import { defaultConfig } from "@/lib/defaultConfig";
 import AgeBandEditor from "./AgeBandEditor";
 import RatingBandEditor from "./RatingBandEditor";
 import TargetMatrixEditor from "./TargetMatrixEditor";
+import RoundingDigitsPicker from "./RoundingDigitsPicker";
+import { parseRoundingDigits } from "@/lib/roundingUtils";
 
 export default function StrategyConfigurator({ strategy, onSave, onCancel }) {
   const [config, setConfig] = useState(
@@ -209,18 +211,6 @@ function BasicSettings({ config, onChange }) {
             className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-2">
-            Stale Days Threshold
-          </label>
-          <input
-            type="number"
-            value={config.stale_days}
-            onChange={(e) => onChange("stale_days", parseInt(e.target.value))}
-            className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -265,9 +255,19 @@ function BasicSettings({ config, onChange }) {
             className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="exact">Exact</option>
-            <option value="nearest">Nearest</option>
             <option value="49/99">49/99 Pricing</option>
+            <option value="ends_with_digit">
+              Round to ending digit(s) (0-9)
+            </option>
           </select>
+          {config.rounding_mode === "ends_with_digit" && (
+            <div className="mt-3">
+              <RoundingDigitsPicker
+                digits={parseRoundingDigits(config)}
+                onChange={(digits) => onChange("rounding_digits", digits)}
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex items-end">

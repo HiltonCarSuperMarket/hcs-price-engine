@@ -4,10 +4,10 @@ export const defaultConfig = {
   reference_column: "Retail valuation",
   tolerance_type: "percent",
   tolerance_value: 2,
-  stale_days: 7,
   nudge_type: "percent",
   nudge_value: 1,
-  rounding_mode: "nearest",
+  rounding_mode: "exact",
+  rounding_digits: [4],
   weekend_hold: true,
   phase_bands: {
     target: [0, 30],

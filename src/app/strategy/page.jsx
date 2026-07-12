@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
+import Link from "next/link";
+import { LayoutDashboard, Settings as SettingsIcon, Grid3x3 } from "lucide-react";
 import { toastUtils } from "@/lib/utils";
 import { TableSkeleton } from "@/components/SkeletonLoader";
 import { HcsBrandNavbar } from "@/components/hcs-brand-navbar";
@@ -18,18 +17,15 @@ export default function TargetMatrixEditor() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Fetch data on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
 
-        // Get strategy ID from URL or use default
         const params = new URLSearchParams(window.location.search);
         const id = params.get("id") || "default";
         setStrategyId(id);
 
-        // Fetch target matrix data
         const response = await fetch(`/api/target-matrix?strategyId=${id}`);
         const result = await response.json();
 
@@ -46,7 +42,6 @@ export default function TargetMatrixEditor() {
         setAgeBands(bands);
         setRatingBands(ratings);
 
-        // Initialize matrix with existing values and empty rows for missing bands
         const initialMatrix = {};
         bands.forEach((band) => {
           initialMatrix[band] = {};
@@ -68,7 +63,6 @@ export default function TargetMatrixEditor() {
     fetchData();
   }, []);
 
-  // Handle input change
   const handleInputChange = (ageBand, ratingBand, value) => {
     setTargetMatrix((prev) => ({
       ...prev,
@@ -79,12 +73,10 @@ export default function TargetMatrixEditor() {
     }));
   };
 
-  // Handle save
   const handleSave = async () => {
     try {
       setSaving(true);
 
-      // Validate all fields are filled
       const hasEmptyValues = Object.entries(targetMatrix).some(
         ([_, ratingData]) =>
           Object.values(ratingData).some(
@@ -98,7 +90,6 @@ export default function TargetMatrixEditor() {
         return;
       }
 
-      // Validate all values are numbers
       const hasInvalidValues = Object.entries(targetMatrix).some(
         ([_, ratingData]) =>
           Object.entries(ratingData).some(([_, val]) => isNaN(parseFloat(val))),
@@ -110,7 +101,6 @@ export default function TargetMatrixEditor() {
         return;
       }
 
-      // Convert string values to numbers
       const matrixToSave = {};
       Object.entries(targetMatrix).forEach(([ageBand, ratingData]) => {
         matrixToSave[ageBand] = {};
@@ -151,15 +141,20 @@ export default function TargetMatrixEditor() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30 p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto">
+      <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
+        <header className="bg-gradient-to-br from-[#300263] to-indigo-950 border-b-2 border-[#00dbcc] sticky top-0 z-100 shadow-xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+            <Skeleton className="h-8 w-48 bg-slate-700" />
+          </div>
+        </header>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8 space-y-3">
-            <div className="h-10 w-64 bg-muted animate-pulse rounded-lg" />
-            <div className="h-6 w-96 max-w-full bg-muted animate-pulse rounded-lg" />
+            <Skeleton className="h-10 w-64 bg-slate-800" />
+            <Skeleton className="h-6 w-96 max-w-full bg-slate-800" />
           </div>
           <TableSkeleton rows={8} cols={5} />
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -191,19 +186,18 @@ export default function TargetMatrixEditor() {
           </p>
         </div>
 
-        {/* Table Card */}
-        <Card className="overflow-hidden shadow-lg">
+        <div className="bg-slate-800 border border-white/5 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse min-w-[600px]">
               <thead>
-                <tr className="bg-[#914f9e] from-muted to-muted/80 border-b-2 border-neutral-200">
-                  <th className="px-3 sm:px-4 py-3 text-left font-semibold text-sm sm:text-base border-r sticky left-0 bg-[#914f9e] from-muted to-muted/80 z-10">
+                <tr className="bg-slate-950 border-b border-white/10">
+                  <th className="px-3 sm:px-4 py-3 text-left font-semibold text-sm sm:text-base border-r border-white/10 sticky left-0 bg-slate-950 z-0 text-[#00dbcc]">
                     Age Band
                   </th>
                   {ratingBands.map((band) => (
                     <th
                       key={band.name || band}
-                      className="px-3 sm:px-4 py-3 text-center font-semibold text-xs sm:text-sm border-r last:border-r-0 whitespace-nowrap"
+                      className="px-3 sm:px-4 py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/10 last:border-r-0 whitespace-nowrap text-[#00dbcc]"
                     >
                       {band.name || band}
                     </th>
@@ -214,13 +208,13 @@ export default function TargetMatrixEditor() {
                 {ageBands.map((ageBand, index) => (
                   <tr
                     key={ageBand}
-                    className={`transition-colors ${
+                    className={`transition-colors border-b border-white/5 ${
                       index % 2 === 0
-                        ? "bg-background hover:bg-neutral-50/50"
-                        : "bg-muted/30 hover:bg-muted/50"
+                        ? "bg-slate-800 hover:bg-slate-800/80"
+                        : "bg-slate-900/40 hover:bg-slate-900/60"
                     }`}
                   >
-                    <td className="px-3 sm:px-4 py-3 font-semibold text-sm sm:text-base border-r sticky left-0 bg-inherit z-10 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+                    <td className="px-3 sm:px-4 py-3 font-semibold text-sm sm:text-base border-r border-white/10 sticky left-0 bg-inherit z-0 text-slate-50 shadow-[2px_0_4px_rgba(0,0,0,0.3)]">
                       {ageBand}
                     </td>
                     {ratingBands.map((ratingBand) => {
@@ -232,10 +226,10 @@ export default function TargetMatrixEditor() {
                       return (
                         <td
                           key={`${ageBand}-${ratingName}`}
-                          className="px-2 sm:px-3 py-3 border-r last:border-r-0"
+                          className="px-2 sm:px-3 py-3 border-r border-white/5 last:border-r-0"
                         >
                           <div className="space-y-1">
-                            <Input
+                            <input
                               type="number"
                               step="0.01"
                               placeholder="0.00"
@@ -247,15 +241,15 @@ export default function TargetMatrixEditor() {
                                   e.target.value,
                                 )
                               }
-                              className={`w-full text-center text-sm sm:text-base transition-all ${
+                              className={`${inputClass} ${
                                 isEmpty
-                                  ? "border-yellow-400 bg-yellow-50/50 focus:border-yellow-500 focus:ring-yellow-200"
-                                  : "border-input focus:border-blue-500 focus:ring-blue-200"
+                                  ? "border-amber-500/50 bg-amber-950/20 focus:border-amber-400 focus:ring-amber-400/30"
+                                  : ""
                               }`}
                               disabled={saving}
                             />
                             {isEmpty && (
-                              <p className="text-xs text-yellow-600 font-medium text-center">
+                              <p className="text-xs text-amber-400 font-medium text-center">
                                 Required
                               </p>
                             )}
@@ -268,61 +262,61 @@ export default function TargetMatrixEditor() {
               </tbody>
             </table>
           </div>
-        </Card>
+        </div>
 
-        {/* Action Buttons */}
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-end">
-          <Button
-            variant="outline"
+          <button
+            type="button"
             onClick={() => window.location.reload()}
             disabled={saving}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto px-6 py-3 bg-slate-900 border border-white/10 text-slate-400 font-medium rounded-lg hover:border-slate-500 hover:text-slate-200 transition-colors disabled:opacity-50"
           >
             Reset
-          </Button>
-          <Button
+          </button>
+          <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
-            className="w-full sm:w-auto bg-[#914f9e] from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[#00dbcc] text-slate-900 font-semibold rounded-lg hover:bg-teal-400 disabled:bg-teal-800/50 disabled:text-slate-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:transform-none"
           >
             {saving ? (
-              <span className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <>
+                <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
                 Saving...
-              </span>
+              </>
             ) : (
               "Save Changes"
             )}
-          </Button>
+          </button>
         </div>
 
-        {/* Info Section */}
-        <Card className="mt-6 sm:mt-8 p-4 sm:p-6 bg-gradient-to-br from-muted/50 to-muted/30 border-neutral-200">
-          <h3 className="font-semibold mb-3 text-base sm:text-lg">
+        <div className="mt-6 sm:mt-8 p-4 sm:p-6 bg-slate-800 border border-white/5 rounded-2xl">
+          <h3 className="font-semibold mb-3 text-base sm:text-lg text-slate-50">
             Information
           </h3>
-          <ul className="text-xs sm:text-sm text-muted-foreground space-y-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <ul className="text-xs sm:text-sm text-slate-400 space-y-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
             <li className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+              <span className="w-1.5 h-1.5 bg-[#00dbcc] rounded-full" />
               Total Age Bands:{" "}
-              <strong className="text-foreground">{ageBands.length}</strong>
+              <strong className="text-slate-200">{ageBands.length}</strong>
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+              <span className="w-1.5 h-1.5 bg-[#00dbcc] rounded-full" />
               Total Rating Bands:{" "}
-              <strong className="text-foreground">{ratingBands.length}</strong>
+              <strong className="text-slate-200">{ratingBands.length}</strong>
             </li>
             <li className="flex items-start gap-2 sm:col-span-2">
-              <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mt-1.5 flex-shrink-0" />
-              All fields marked with "Required" must be filled before saving
+              <span className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 flex-shrink-0" />
+              All fields marked with &quot;Required&quot; must be filled before
+              saving
             </li>
             <li className="flex items-center gap-2 sm:col-span-2">
-              <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+              <span className="w-1.5 h-1.5 bg-[#00dbcc] rounded-full" />
               Values must be valid numbers
             </li>
           </ul>
-        </Card>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

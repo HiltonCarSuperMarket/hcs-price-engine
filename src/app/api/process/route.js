@@ -1,4 +1,12 @@
 import Papa from "papaparse";
+import connectDB from "@/lib/mongodb";
+import { Configuration } from "@/lib/models";
+import { parseRoundingDigits, roundToEndingDigits } from "@/lib/roundingUtils";
+import {
+  applyDirectionFilter,
+  buildCsvFromResults,
+  filterResultsForExport,
+} from "@/lib/processingUtils";
 
 // Pricing Engine Logic (ported from Python)
 class PricingEngine {
@@ -123,17 +131,45 @@ class PricingEngine {
     return { refVal, targetPercent, targetPrice };
   }
 
-  isWithinStrategy(price, refPrice, targetPercent) {
-    const targetPrice = refPrice * (targetPercent / 100);
-
+  getToleranceAbs(refVal) {
     if (this.config.tolerance_type === "percent") {
-      const currentPercent = (price / refPrice) * 100;
-      const diff = Math.abs(currentPercent - targetPercent);
-      return diff <= this.config.tolerance_value;
-    } else {
-      const diff = Math.abs(price - targetPrice);
-      return diff <= this.config.tolerance_value;
+      return refVal * (this.config.tolerance_value / 100);
     }
+    return this.config.tolerance_value;
+  }
+
+  getToleranceBounds(refVal, targetPercent, targetPrice) {
+    if (this.config.tolerance_type === "percent") {
+      return {
+        lowerLimit:
+          refVal * ((targetPercent - this.config.tolerance_value) / 100),
+        upperLimit:
+          refVal * ((targetPercent + this.config.tolerance_value) / 100),
+      };
+    }
+    return {
+      lowerLimit: targetPrice - this.config.tolerance_value,
+      upperLimit: targetPrice + this.config.tolerance_value,
+    };
+  }
+
+  applyDownNudge(currentPrice, refVal, targetPercent, targetPrice) {
+    const nudgeAmt =
+      this.config.nudge_type === "percent"
+        ? refVal * (this.config.nudge_value / 100)
+        : this.config.nudge_value;
+
+    const priceDrop = currentPrice - nudgeAmt;
+    const { lowerLimit, upperLimit } = this.getToleranceBounds(
+      refVal,
+      targetPercent,
+      targetPrice,
+    );
+
+    if (priceDrop >= lowerLimit && priceDrop <= upperLimit) {
+      return priceDrop;
+    }
+    return null;
   }
 
   applyRounding(price) {
@@ -155,23 +191,9 @@ class PricingEngine {
       return candidates.reduce((prev, curr) =>
         Math.abs(curr - price) < Math.abs(prev - price) ? curr : prev,
       );
-    } else if (this.config.rounding_mode === "ends_with_4_9") {
-      const val = Math.round(price);
-      const center = Math.floor(val);
-      const candidates = [];
-
-      for (let i = center - 10; i <= center + 10; i++) {
-        if (i < 0) continue;
-        const s = String(i);
-        if (s.endsWith("4") || s.endsWith("9")) {
-          candidates.push(i);
-        }
-      }
-
-      if (candidates.length === 0) return center;
-      return candidates.reduce((prev, curr) =>
-        Math.abs(curr - val) < Math.abs(prev - val) ? curr : prev,
-      );
+    } else if (this.config.rounding_mode === "ends_with_digit") {
+      const digits = parseRoundingDigits(this.config);
+      return roundToEndingDigits(price, digits);
     }
 
     return price;
@@ -181,69 +203,46 @@ class PricingEngine {
     try {
       const { refVal, targetPercent, targetPrice } =
         this.calculateTarget(stock);
-      const withinStrategy = this.isWithinStrategy(
-        stock.current_price,
-        refVal,
-        targetPercent,
-      );
 
       let finalPrice = stock.current_price;
       let reason = "No change";
 
-      if (withinStrategy) {
-        if (stock.days_since_last_change >= this.config.stale_days) {
-          const nudgeAmt =
-            this.config.nudge_type === "percent"
-              ? refVal * (this.config.nudge_value / 100)
-              : this.config.nudge_value;
+      if (targetPrice > stock.current_price) {
+        finalPrice = this.applyRounding(targetPrice);
+        reason = `Increase to target (${targetPercent}%)`;
+      } else if (stock.current_price > targetPrice) {
+        const reduction = stock.current_price - targetPrice;
+        const toleranceAbs = this.getToleranceAbs(refVal);
 
-          let lowerLimit, upperLimit;
-          if (this.config.tolerance_type === "percent") {
-            lowerLimit =
-              refVal * ((targetPercent - this.config.tolerance_value) / 100);
-            upperLimit =
-              refVal * ((targetPercent + this.config.tolerance_value) / 100);
-          } else {
-            lowerLimit = targetPrice - this.config.tolerance_value;
-            upperLimit = targetPrice + this.config.tolerance_value;
-          }
-
-          const priceDrop = stock.current_price - nudgeAmt;
-          const priceAdd = stock.current_price + nudgeAmt;
-
-          const dropValid = priceDrop >= lowerLimit && priceDrop <= upperLimit;
-          const addValid = priceAdd >= lowerLimit && priceAdd <= upperLimit;
-
-          let bestNudge = null;
-          const pref = (this.config.nudge_preference || "drop").toLowerCase();
-
-          if (pref === "drop") {
-            bestNudge = dropValid ? priceDrop : addValid ? priceAdd : null;
-          } else if (pref === "add") {
-            bestNudge = addValid ? priceAdd : dropValid ? priceDrop : null;
-          } else {
-            bestNudge = dropValid ? priceDrop : addValid ? priceAdd : null;
-          }
-
-          if (bestNudge) {
-            finalPrice = this.applyRounding(bestNudge);
-            reason = `Stale nudge (${stock.days_since_last_change} days) - Within strategy`;
-          } else {
-            reason = `Within strategy (Stale ${stock.days_since_last_change} days but nudge fails tolerance)`;
-          }
-        } else {
-          reason = "Within strategy";
-        }
-      } else {
-        const roundedTarget = this.applyRounding(targetPrice);
-        finalPrice = roundedTarget;
-
-        if (finalPrice > stock.current_price) {
-          reason = `Increase to target (${targetPercent}%)`;
-        } else if (finalPrice < stock.current_price) {
+        if (reduction > toleranceAbs) {
+          finalPrice = this.applyRounding(targetPrice);
           reason = `Decrease to target (${targetPercent}%)`;
         } else {
-          reason = "Price OK (Rounded)";
+          const nudgedPrice = this.applyDownNudge(
+            stock.current_price,
+            refVal,
+            targetPercent,
+            targetPrice,
+          );
+          if (nudgedPrice !== null) {
+            finalPrice = this.applyRounding(nudgedPrice);
+            reason = "Nudge applied - Within strategy";
+          } else {
+            reason = "Within strategy (nudge exceeds tolerance bounds)";
+          }
+        }
+      } else {
+        const nudgedPrice = this.applyDownNudge(
+          stock.current_price,
+          refVal,
+          targetPercent,
+          targetPrice,
+        );
+        if (nudgedPrice !== null) {
+          finalPrice = this.applyRounding(nudgedPrice);
+          reason = "Nudge applied - Within strategy";
+        } else {
+          reason = "Within strategy";
         }
       }
 
@@ -257,6 +256,7 @@ class PricingEngine {
         reason: reason,
         age_days: stock.age_days,
         at_rating: stock.rating_band,
+        days_since_last_change: stock.days_since_last_change,
       };
     } catch (error) {
       return {
@@ -269,6 +269,7 @@ class PricingEngine {
         reason: `Data Error: ${error.message}`,
         age_days: stock.age_days,
         at_rating: stock.rating_band,
+        days_since_last_change: stock.days_since_last_change,
       };
     }
   }
@@ -292,7 +293,10 @@ function calculateStatistics(results) {
   const totalStocks = results.length;
 
   const notChange = results.filter(
-    (r) => r.reason === "Within strategy",
+    (r) =>
+      r.reason &&
+      r.reason.includes("Within strategy") &&
+      !r.reason.includes("Nudge applied"),
   ).length;
 
   const priceIncrease = results.filter(
@@ -310,14 +314,14 @@ function calculateStatistics(results) {
   const increaseWithinStrategy = results.filter(
     (r) =>
       r.reason &&
-      r.reason.includes("Stale nudge") &&
+      r.reason.includes("Nudge applied") &&
       r.new_price - r.current_price > 0,
   ).length;
 
   const decreaseWithinStrategy = results.filter(
     (r) =>
       r.reason &&
-      r.reason.includes("Stale nudge") &&
+      r.reason.includes("Nudge applied") &&
       r.new_price - r.current_price <= 0,
   ).length;
 
@@ -355,7 +359,7 @@ function calculateStatistics(results) {
 
   const staleNudgeIncreaseAmount = results.reduce((sum, r) => {
     const change = r.new_price - r.current_price;
-    if (r.reason && r.reason.includes("Stale nudge") && change > 0) {
+    if (r.reason && r.reason.includes("Nudge applied") && change > 0) {
       return sum + change;
     }
     return sum;
@@ -363,7 +367,7 @@ function calculateStatistics(results) {
 
   const staleNudgeDecreaseAmount = results.reduce((sum, r) => {
     const change = r.new_price - r.current_price;
-    if (r.reason && r.reason.includes("Stale nudge") && change <= 0) {
+    if (r.reason && r.reason.includes("Nudge applied") && change <= 0) {
       return sum + change; // will be negative or zero
     }
     return sum;
@@ -399,16 +403,64 @@ function calculateStatistics(results) {
 }
 export async function POST(request) {
   try {
+    await connectDB();
+
     const formData = await request.formData();
     const file = formData.get("file");
     const configStr = formData.get("config");
+    const optionsStr = formData.get("options");
 
     if (!file) {
       return Response.json({ error: "No file provided" }, { status: 400 });
     }
 
+    if (!configStr) {
+      return Response.json(
+        { error: "No configuration provided" },
+        { status: 400 },
+      );
+    }
+
     const text = await file.text();
     const config = JSON.parse(configStr);
+
+    let processOptions = { includePriceUp: true, includePriceDown: true };
+    if (optionsStr) {
+      try {
+        const parsed = JSON.parse(optionsStr);
+        processOptions = {
+          includePriceUp: parsed.includePriceUp !== false,
+          includePriceDown: parsed.includePriceDown !== false,
+        };
+      } catch {
+        return Response.json(
+          { error: "Invalid processing options" },
+          { status: 400 },
+        );
+      }
+    }
+
+    if (!processOptions.includePriceUp && !processOptions.includePriceDown) {
+      return Response.json(
+        { error: "Select at least one price direction" },
+        { status: 400 },
+      );
+    }
+
+    const strategyConfig = Array.isArray(config) ? config[0] : config;
+    const configItems = await Configuration.find();
+    const globalConfig = configItems.reduce(
+      (acc, item) => ({
+        ...acc,
+        [item.key]: item.value,
+      }),
+      {},
+    );
+
+    const fullConfig = {
+      ...strategyConfig,
+      ...globalConfig,
+    };
 
     // Parse CSV using Papa Parse
     const parsed = Papa.parse(text, {
@@ -521,8 +573,14 @@ export async function POST(request) {
       }
 
       // Add defaults for fields used by the pricing engine
+      // NaN means new record with no previous price change — these should be processed, not skipped
+      const rawDaysValue = record["Days since last price change"];
       const days_since_last_change =
-        parseInt(record["Days since last price change"] || 0) || 0;
+        rawDaysValue != null &&
+        String(rawDaysValue).trim() !== "" &&
+        String(rawDaysValue).trim().toLowerCase() !== "nan"
+          ? parseInt(rawDaysValue) || 0
+          : NaN;
       const reference_price = currentPrice; // Will be calculated by engine, use current as fallback
 
       validRecords.push({
@@ -538,15 +596,16 @@ export async function POST(request) {
       });
     }
 
-    // Merge with default config if needed
-    const fullConfig = {
-      ...config[0],
-    };
-
-    // console.log(JSON.stringify(fullConfig, null, 2));
-
     const engine = new PricingEngine(fullConfig);
-    const validResults = engine.processStocks(validRecords);
+    const validResults = engine
+      .processStocks(validRecords)
+      .map((result) =>
+        applyDirectionFilter(
+          result,
+          processOptions.includePriceUp,
+          processOptions.includePriceDown,
+        ),
+      );
 
     // Combine valid results with invalid records (marked with data errors)
     const results = [...validResults, ...invalidRecords];
@@ -558,53 +617,8 @@ export async function POST(request) {
 
     console.log("Data Error count:", count);
 
-    // Convert results to CSV format with all required columns
-    const csvLines = [
-      [
-        "stock_id",
-        "current_price",
-        "reference_price",
-        "target_percent",
-        "target_price",
-        "new_price",
-        "Amount change",
-        "Days in Stock",
-        "AT Rating",
-        "reason",
-      ].join(","),
-      ...results.map((r) => {
-        // Handle data error records that don't have all fields
-        if (r.reason && r.reason.startsWith("Data Error")) {
-          return [
-            r.stock_id || "MISSING",
-            r.current_price || "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            `"${r.reason}"`,
-          ].join(",");
-        }
-
-        const amountChange = r.new_price - r.current_price;
-        return [
-          r.stock_id,
-          Math.round(r.current_price || 0),
-          Math.round(r.reference_price || 0),
-          `${r.target_percent.toFixed(2)}%`,
-          Math.round(r.target_price || 0),
-          Math.round(r.new_price || 0),
-          amountChange.toFixed(0),
-          r.age_days || "",
-          r.at_rating || "",
-          `"${r.reason || "Unknown"}"`,
-        ].join(",");
-      }),
-    ];
-    const csv = csvLines.join("\n");
+    const exportResults = filterResultsForExport(results, processOptions);
+    const csv = buildCsvFromResults(exportResults);
 
     const statistics = calculateStatistics(results);
 
@@ -612,6 +626,7 @@ export async function POST(request) {
       ...statistics,
       csv,
       results,
+      processOptions,
     });
   } catch (error) {
     console.error("Processing error:", error);
