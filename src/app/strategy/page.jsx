@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toastUtils } from "@/lib/utils";
 import { TableSkeleton } from "@/components/SkeletonLoader";
+import { HcsBrandNavbar } from "@/components/hcs-brand-navbar";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export default function TargetMatrixEditor() {
   const [strategyId, setStrategyId] = useState(null);
@@ -161,14 +164,28 @@ export default function TargetMatrixEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30">
+      <HcsBrandNavbar
+        title="Pricing Engine"
+        subtitle="Target Matrix"
+        homeHref="/"
+        right={
+          <Link
+            href="/settings"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20 sm:text-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Settings
+          </Link>
+        }
+      />
+      <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 bg-[#914f9e] from-neutral-900 to-blue-800 bg-clip-text text-transparent">
+          <h1 className="mb-2 bg-[#914f9e] from-neutral-900 to-blue-800 bg-clip-text text-2xl font-bold text-transparent sm:text-3xl lg:text-4xl">
             Target Matrix Editor
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
+          <p className="text-sm text-muted-foreground sm:text-base">
             Configure target values for each age band and rating band
             combination
           </p>

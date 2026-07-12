@@ -6,6 +6,7 @@ import { Play, Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { toastUtils } from "@/lib/utils";
 import { ConfigSkeleton } from "@/components/SkeletonLoader";
+import { HcsBrandNavbar } from "@/components/hcs-brand-navbar";
 
 // Helper function to parse age band string and extract min/max values
 const parseAgeBand = (bandName) => {
@@ -268,47 +269,31 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-blue-50/30">
-      <div className="bg-[#480C7B] backdrop-blur-sm border-b border-neutral-200/50 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <Link
-                href="/"
-                className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                aria-label="Go back"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div className="flex ">
-                <Link href="/" className="flex items-center space-x-6">
-                  <div
-                    style={{
-                      backgroundColor: "#480C7B",
-                      display: "inline-block",
-                      padding: "10px",
-                    }}
-                  >
-                    <img
-                      src="/logo-hilton.svg"
-                      alt="Hilton logo"
-                      width={200}
-                      height={30}
-                    />
-                  </div>
-                </Link>
-              </div>
-            </div>
+      <HcsBrandNavbar
+        title="Pricing Engine"
+        subtitle="Configuration"
+        homeHref="/"
+        right={
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20 sm:text-sm"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Back</span>
+            </Link>
             <Link
               href="/strategy"
-              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#914f9e] from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap text-sm sm:text-base font-medium w-full sm:w-auto justify-center"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-xs font-semibold text-white hover:bg-white/25 sm:px-4 sm:text-sm"
             >
-              <SettingsIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <SettingsIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Strategy Configuration</span>
               <span className="sm:hidden">Strategy</span>
             </Link>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Global Configuration Section */}
