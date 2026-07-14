@@ -1,17 +1,128 @@
+export function getPriceChange(result) {
+  return (result.new_price ?? 0) - (result.current_price ?? 0);
+}
+
 /** Classify a processed result by price direction */
 export function classifyPriceDirection(result) {
   if (result.reason?.includes("Data Error")) return "error";
-  const change = result.new_price - result.current_price;
+  const change = getPriceChange(result);
   if (change > 0) return "up";
   if (change < 0) return "down";
   return "none";
+}
+
+/** Build dashboard statistics aligned with export direction logic */
+export function calculateResultStatistics(results) {
+  const totalStocks = results.length;
+
+  const dataIssues = results.filter((r) =>
+    r.reason?.includes("Data Error"),
+  ).length;
+
+  const notChange = results.filter((r) => {
+    if (r.reason?.includes("Data Error")) return false;
+    return getPriceChange(r) === 0;
+  }).length;
+
+  const priceIncrease = results.filter((r) => {
+    const change = getPriceChange(r);
+    return change > 0 && r.reason?.includes("Increase to target");
+  }).length;
+
+  const priceDecrease = results.filter((r) => {
+    const change = getPriceChange(r);
+    return change < 0 && r.reason?.includes("Decrease to target");
+  }).length;
+
+  const totalWithinStrategy = results.filter((r) =>
+    r.reason?.includes("Within strategy"),
+  ).length;
+
+  const increaseWithinStrategy = results.filter((r) => {
+    const change = getPriceChange(r);
+    return change > 0 && r.reason?.includes("Nudge applied");
+  }).length;
+
+  const decreaseWithinStrategy = results.filter((r) => {
+    const change = getPriceChange(r);
+    return change < 0 && r.reason?.includes("Nudge applied");
+  }).length;
+
+  const totalIncrement = results.reduce((sum, r) => {
+    const change = getPriceChange(r);
+    return sum + (change > 0 ? change : 0);
+  }, 0);
+
+  const totalDrop = results.reduce((sum, r) => {
+    const change = getPriceChange(r);
+    return sum + (change < 0 ? -change : 0);
+  }, 0);
+
+  const netImpact = totalIncrement - totalDrop;
+
+  const increaseToTargetAmount = results.reduce((sum, r) => {
+    if (r.reason?.includes("Increase to target")) {
+      return sum + getPriceChange(r);
+    }
+    return sum;
+  }, 0);
+
+  const decreaseToTargetAmount = results.reduce((sum, r) => {
+    if (r.reason?.includes("Decrease to target")) {
+      return sum + getPriceChange(r);
+    }
+    return sum;
+  }, 0);
+
+  const staleNudgeIncreaseAmount = results.reduce((sum, r) => {
+    const change = getPriceChange(r);
+    if (r.reason?.includes("Nudge applied") && change > 0) {
+      return sum + change;
+    }
+    return sum;
+  }, 0);
+
+  const staleNudgeDecreaseAmount = results.reduce((sum, r) => {
+    const change = getPriceChange(r);
+    if (r.reason?.includes("Nudge applied") && change < 0) {
+      return sum + change;
+    }
+    return sum;
+  }, 0);
+
+  return {
+    stats: {
+      total_drop: totalDrop,
+      total_increment: totalIncrement,
+      net_impact: netImpact,
+      increase_to_target_amount: increaseToTargetAmount,
+      decrease_to_target_amount: decreaseToTargetAmount,
+      stale_nudge_increase_amount: staleNudgeIncreaseAmount,
+      stale_nudge_decrease_amount: staleNudgeDecreaseAmount,
+    },
+    summary: {
+      total_stocks: totalStocks,
+      within_strategy: notChange,
+      optimized: increaseWithinStrategy + decreaseWithinStrategy,
+      increases: priceIncrease,
+      decreases: priceDecrease,
+      data_issues: dataIssues,
+      total_within_strategy: totalWithinStrategy,
+      increase_within_strategy: increaseWithinStrategy,
+      decrease_within_strategy: decreaseWithinStrategy,
+      not_change: notChange,
+      price_increase: priceIncrease,
+      price_decrease: priceDecrease,
+    },
+    sample_results: results.slice(0, 10),
+  };
 }
 
 /** Apply price-direction filter after engine calculation */
 export function applyDirectionFilter(result, includePriceUp, includePriceDown) {
   if (result.reason?.startsWith("Data Error")) return result;
 
-  const change = result.new_price - result.current_price;
+  const change = getPriceChange(result);
 
   if (change > 0 && !includePriceUp) {
     return {

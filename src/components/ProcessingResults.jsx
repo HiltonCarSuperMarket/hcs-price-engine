@@ -24,7 +24,8 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
         : "Price Down only"
     : null;
 
-  const totalIncreaseCount = summary.price_increase;
+  const totalIncreaseCount =
+    (summary.price_increase || 0) + (summary.increase_within_strategy || 0);
   const totalDecreaseCount =
     summary.price_decrease + summary.decrease_within_strategy;
 

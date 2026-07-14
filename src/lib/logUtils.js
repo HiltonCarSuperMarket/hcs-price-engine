@@ -36,7 +36,8 @@ export function buildLogFromResults(results) {
   const { stats, summary } = results;
 
   const noChange = summary?.not_change || 0;
-  const pcUp = summary?.price_increase || 0;
+  const pcUp =
+    (summary?.price_increase || 0) + (summary?.increase_within_strategy || 0);
   const pcDown = summary?.price_decrease || 0;
   const prUp = 0;
   const prDown = summary?.decrease_within_strategy || 0;
