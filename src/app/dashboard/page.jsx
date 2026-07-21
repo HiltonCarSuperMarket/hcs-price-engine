@@ -16,6 +16,13 @@ import {
   navActionPrimaryClass,
 } from "@/components/hcs-brand-navbar";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   NetImpactTrendChart,
   AdjustmentBreakdownChart,
   UnitsTrendChart,
@@ -107,6 +114,29 @@ export default function DashboardPage() {
     }
   }, [logs, startDate]);
 
+  const monthOptions = useMemo(() => {
+    const months = new Map();
+
+    logs.forEach((log) => {
+      const month = log.dateIso?.slice(0, 7);
+      if (!month || months.has(month)) return;
+
+      const [year, monthNumber] = month.split("-").map(Number);
+      months.set(
+        month,
+        new Intl.DateTimeFormat("en-GB", {
+          month: "long",
+          year: "numeric",
+          timeZone: "UTC",
+        }).format(new Date(Date.UTC(year, monthNumber - 1, 1))),
+      );
+    });
+
+    return Array.from(months, ([value, label]) => ({ value, label })).sort(
+      (a, b) => a.value.localeCompare(b.value),
+    );
+  }, [logs]);
+
   const filteredLogs = useMemo(() => {
     if (!startDate || !endDate) return logs.map(enrichLog);
     return logs
@@ -148,8 +178,16 @@ export default function DashboardPage() {
   const yLabel = METRIC_OPTIONS.find((m) => m.key === corrY)?.label || corrY;
 
   const weekendData = [
-    { label: "Weekday", avgNet: Math.round(weekdayAvgNet), count: weekdayCount },
-    { label: "Weekend", avgNet: Math.round(weekendAvgNet), count: weekendCount },
+    {
+      label: "Weekday",
+      avgNet: Math.round(weekdayAvgNet),
+      count: weekdayCount,
+    },
+    {
+      label: "Weekend",
+      avgNet: Math.round(weekendAvgNet),
+      count: weekendCount,
+    },
   ];
 
   const applyFilters = () => {
@@ -166,12 +204,15 @@ export default function DashboardPage() {
     let start = min;
     let end = max;
 
-    if (preset === "may") {
-      start = "2026-05-01";
-      end = "2026-05-31";
-    } else if (preset === "june") {
-      start = "2026-06-01";
-      end = max;
+    if (preset.startsWith("month:")) {
+      const month = preset.slice(6);
+      const [year, monthNumber] = month.split("-").map(Number);
+      const lastDay = new Date(Date.UTC(year, monthNumber, 0))
+        .getUTCDate()
+        .toString()
+        .padStart(2, "0");
+      start = `${month}-01`;
+      end = `${month}-${lastDay}`;
     } else if (preset === "last7") {
       const last7 = logs.slice(-7);
       if (last7.length) {
@@ -235,7 +276,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 pb-12">
       <HcsBrandNavbar
-        title="Pricing Engine Analysis"
+        title="Price2Profit Analysis"
         subtitle="HCS Pricing Hub"
         homeHref="/"
         right={
@@ -284,10 +325,30 @@ export default function DashboardPage() {
             <span className="text-sm font-semibold text-[#00dbcc] uppercase tracking-wide mr-1">
               Presets:
             </span>
+            <Select
+              value={
+                activePreset.startsWith("month:")
+                  ? activePreset.slice(6)
+                  : undefined
+              }
+              onValueChange={(value) => setPreset(`month:${value}`)}
+            >
+              <SelectTrigger
+                aria-label="Select month"
+                className="h-auto min-w-36 rounded-full border-white/10 bg-slate-950 px-3 py-1.5 text-xs font-medium text-slate-300 hover:border-[#00dbcc]"
+              >
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent className="border-white/10 bg-slate-950 text-slate-300">
+                {monthOptions.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {[
               { id: "all", label: "All Time" },
-              { id: "may", label: "May 2026" },
-              { id: "june", label: "June 2026" },
               { id: "last7", label: "Last 7 Days" },
             ].map((p) => (
               <button
@@ -306,11 +367,13 @@ export default function DashboardPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-20 text-slate-400">Loading dashboard...</div>
+          <div className="text-center py-20 text-slate-400">
+            Loading dashboard...
+          </div>
         ) : filteredLogs.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
-            No log data for the selected range. Process a file and click &quot;Save
-            Log&quot; to add entries.
+            No log data for the selected range. Process a file and click
+            &quot;Save Log&quot; to add entries.
           </div>
         ) : (
           <>
@@ -387,8 +450,8 @@ export default function DashboardPage() {
                     Correlation Analysis
                   </h2>
                   <p className="text-sm text-slate-400 mt-1">
-                    Explore relationships between pricing metrics across selected
-                    dates
+                    Explore relationships between pricing metrics across
+                    selected dates
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -501,34 +564,41 @@ export default function DashboardPage() {
                       (rowKey) => (
                         <tr key={rowKey} className="border-t border-white/5">
                           <td className="p-2 font-semibold text-slate-300">
-                            {METRIC_OPTIONS.find((m) => m.key === rowKey)?.label}
+                            {
+                              METRIC_OPTIONS.find((m) => m.key === rowKey)
+                                ?.label
+                            }
                           </td>
-                          {["units", "pcDown", "net", "noChangePct", "issues"].map(
-                            (colKey) => {
-                              const r = correlationMatrix[rowKey]?.[colKey];
-                              const abs = r !== null ? Math.abs(r) : 0;
-                              const bg =
-                                r === null
-                                  ? "bg-slate-900"
-                                  : abs >= 0.7
+                          {[
+                            "units",
+                            "pcDown",
+                            "net",
+                            "noChangePct",
+                            "issues",
+                          ].map((colKey) => {
+                            const r = correlationMatrix[rowKey]?.[colKey];
+                            const abs = r !== null ? Math.abs(r) : 0;
+                            const bg =
+                              r === null
+                                ? "bg-slate-900"
+                                : abs >= 0.7
+                                  ? r > 0
+                                    ? "bg-emerald-900/60"
+                                    : "bg-red-900/60"
+                                  : abs >= 0.4
                                     ? r > 0
-                                      ? "bg-emerald-900/60"
-                                      : "bg-red-900/60"
-                                    : abs >= 0.4
-                                      ? r > 0
-                                        ? "bg-emerald-900/30"
-                                        : "bg-red-900/30"
-                                      : "bg-slate-800";
-                              return (
-                                <td
-                                  key={colKey}
-                                  className={`p-2 text-center ${bg} ${rowKey === corrX && colKey === corrY ? "ring-2 ring-[#00dbcc]" : ""}`}
-                                >
-                                  {r !== null ? r.toFixed(2) : "—"}
-                                </td>
-                              );
-                            },
-                          )}
+                                      ? "bg-emerald-900/30"
+                                      : "bg-red-900/30"
+                                    : "bg-slate-800";
+                            return (
+                              <td
+                                key={colKey}
+                                className={`p-2 text-center ${bg} ${rowKey === corrX && colKey === corrY ? "ring-2 ring-[#00dbcc]" : ""}`}
+                              >
+                                {r !== null ? r.toFixed(2) : "—"}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ),
                     )}
@@ -582,7 +652,9 @@ export default function DashboardPage() {
                         key={row.dateIso}
                         className="border-b border-white/5 hover:bg-white/[0.02]"
                       >
-                        <td className="px-4 py-3 font-semibold">{row.dateStr}</td>
+                        <td className="px-4 py-3 font-semibold">
+                          {row.dateStr}
+                        </td>
                         <td className="px-4 py-3 text-slate-400 text-xs">
                           {row.savedAt
                             ? new Date(row.savedAt).toLocaleString("en-GB")
