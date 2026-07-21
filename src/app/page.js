@@ -146,7 +146,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
       <HcsBrandNavbar
-        title="Pricing Engine"
+        title="Price2Profit"
         subtitle="HCS Pricing Hub"
         homeHref="/"
         right={

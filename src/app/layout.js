@@ -8,7 +8,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Pricing Engine",
+  title: "Price2Profit",
   description: "Smart pricing strategy engine for inventory management",
   generator: "v0.app",
   icons: {
@@ -34,8 +34,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`font-sans antialiased`}>
-        <Toaster 
-          richColors 
+        <Toaster
+          richColors
           position="bottom-right"
           closeButton
           duration={4000}
