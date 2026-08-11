@@ -538,6 +538,42 @@ export default function SettingsPage() {
                     Save
                   </button>
                 </div>
+
+                <div>
+                  <label className={`${labelClass} mb-2`}>
+                    Lower Threshold (£)
+                  </label>
+                  <p className="text-xs text-slate-500 mb-2">
+                    Price decreases greater than this amount are blocked and
+                    exported separately
+                  </p>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={globalConfigs.lower_threshold ?? 400}
+                    onChange={(e) => {
+                      setGlobalConfigs((prev) => ({
+                        ...prev,
+                        lower_threshold: parseFloat(e.target.value) || 0,
+                      }));
+                    }}
+                    className={inputClass}
+                  />
+                  <button
+                    onClick={() =>
+                      saveGlobalConfig(
+                        "lower_threshold",
+                        globalConfigs.lower_threshold ?? 400,
+                        "Lower Threshold",
+                        "system",
+                      )
+                    }
+                    className={saveBtnClass}
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
             </div>
           )}

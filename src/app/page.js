@@ -98,14 +98,14 @@ export default function Home() {
     }
   };
 
-  const handleDownload = async () => {
-    if (!results) return;
+  const handleDownload = async (csvContent, filename) => {
+    if (!csvContent) return;
 
     try {
       const response = await fetch("/api/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(results.csv),
+        body: JSON.stringify(csvContent),
       });
 
       if (!response.ok) {
@@ -116,14 +116,7 @@ export default function Home() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const opts = results.processOptions;
-      const suffix =
-        opts && !opts.includePriceUp
-          ? "price_down"
-          : opts && !opts.includePriceDown
-            ? "price_up"
-            : "all";
-      link.download = `pricing_results_${suffix}.csv`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -132,6 +125,23 @@ export default function Home() {
     } catch (err) {
       toastUtils.error(err.message || "Failed to download file");
     }
+  };
+
+  const handleDownloadMain = async () => {
+    if (!results?.csv) return;
+    const opts = results.processOptions;
+    const suffix =
+      opts && !opts.includePriceUp
+        ? "price_down"
+        : opts && !opts.includePriceDown
+          ? "price_up"
+          : "all";
+    await handleDownload(results.csv, `pricing_results_${suffix}.csv`);
+  };
+
+  const handleDownloadBlocked = async () => {
+    if (!results?.blockedCsv) return;
+    await handleDownload(results.blockedCsv, "pricing_results_blocked.csv");
   };
 
   if (isLoadingConfig) {
@@ -229,7 +239,8 @@ export default function Home() {
         ) : (
           <ProcessingResults
             results={results}
-            onDownload={handleDownload}
+            onDownload={handleDownloadMain}
+            onDownloadBlocked={handleDownloadBlocked}
             onReset={() => setResults(null)}
           />
         )}

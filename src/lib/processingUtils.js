@@ -1,5 +1,33 @@
+export const BLOCKED_REASON = "Blocked as exceeded lower threshold";
+
 export function getPriceChange(result) {
   return (result.new_price ?? 0) - (result.current_price ?? 0);
+}
+
+export function isBlockedResult(result) {
+  return result.reason === BLOCKED_REASON;
+}
+
+/** Block decreases that exceed the configured lower threshold */
+export function applyLowerThreshold(result, lowerThreshold) {
+  if (result.reason?.startsWith("Data Error")) return result;
+  if (!lowerThreshold || lowerThreshold <= 0) return result;
+
+  const change = getPriceChange(result);
+  if (change >= 0) return result;
+
+  const decreaseAmount = -change;
+  if (decreaseAmount > lowerThreshold) {
+    return {
+      ...result,
+      blocked_new_price: result.new_price,
+      blocked_amount: decreaseAmount,
+      new_price: result.current_price,
+      reason: BLOCKED_REASON,
+    };
+  }
+
+  return result;
 }
 
 /** Classify a processed result by price direction */
@@ -21,8 +49,11 @@ export function calculateResultStatistics(results) {
 
   const notChange = results.filter((r) => {
     if (r.reason?.includes("Data Error")) return false;
+    if (isBlockedResult(r)) return false;
     return getPriceChange(r) === 0;
   }).length;
+
+  const blocked = results.filter(isBlockedResult).length;
 
   const priceIncrease = results.filter((r) => {
     const change = getPriceChange(r);
@@ -113,6 +144,7 @@ export function calculateResultStatistics(results) {
       not_change: notChange,
       price_increase: priceIncrease,
       price_decrease: priceDecrease,
+      blocked,
     },
     sample_results: results.slice(0, 10),
   };
@@ -143,18 +175,25 @@ export function applyDirectionFilter(result, includePriceUp, includePriceDown) {
   return result;
 }
 
-/** Filter results for CSV export based on selected directions */
+/** Filter results for CSV export based on selected directions (excludes blocked) */
 export function filterResultsForExport(results, options) {
   const { includePriceUp = true, includePriceDown = true } = options;
 
-  if (includePriceUp && includePriceDown) return results;
+  const eligible = results.filter((r) => !isBlockedResult(r));
 
-  return results.filter((r) => {
+  if (includePriceUp && includePriceDown) return eligible;
+
+  return eligible.filter((r) => {
     const dir = classifyPriceDirection(r);
     if (dir === "up") return includePriceUp;
     if (dir === "down") return includePriceDown;
     return false;
   });
+}
+
+/** Results blocked by lower threshold — for separate download */
+export function filterBlockedResults(results) {
+  return results.filter(isBlockedResult);
 }
 
 export function buildCsvFromResults(results) {
@@ -204,6 +243,38 @@ export function buildCsvFromResults(results) {
         `"${r.reason || "Unknown"}"`,
       ].join(",");
     }),
+  ];
+  return csvLines.join("\n");
+}
+
+export function buildBlockedCsvFromResults(results) {
+  const csvLines = [
+    [
+      "stock_id",
+      "current_price",
+      "reference_price",
+      "target_percent",
+      "target_price",
+      "intended_new_price",
+      "blocked_amount",
+      "Days in Stock",
+      "AT Rating",
+      "Days since last price change",
+      "reason",
+    ].join(","),
+    ...results.map((r) => [
+      r.stock_id,
+      Math.round(r.current_price || 0),
+      Math.round(r.reference_price || 0),
+      `${r.target_percent.toFixed(2)}%`,
+      Math.round(r.target_price || 0),
+      Math.round(r.blocked_new_price || 0),
+      Math.round(r.blocked_amount || 0),
+      r.age_days || "",
+      r.at_rating || "",
+      r.days_since_last_change ?? "",
+      `"${r.reason || BLOCKED_REASON}"`,
+    ].join(",")),
   ];
   return csvLines.join("\n");
 }
