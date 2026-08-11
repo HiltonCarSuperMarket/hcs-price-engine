@@ -4,8 +4,11 @@ import { Configuration } from "@/lib/models";
 import { parseRoundingDigits, roundToEndingDigits } from "@/lib/roundingUtils";
 import {
   applyDirectionFilter,
+  applyLowerThreshold,
+  buildBlockedCsvFromResults,
   buildCsvFromResults,
   calculateResultStatistics,
+  filterBlockedResults,
   filterResultsForExport,
 } from "@/lib/processingUtils";
 
@@ -485,6 +488,11 @@ export async function POST(request) {
       });
     }
 
+    const lowerThreshold =
+      fullConfig.lower_threshold != null
+        ? Number(fullConfig.lower_threshold)
+        : 400;
+
     const engine = new PricingEngine(fullConfig);
     const validResults = engine
       .processStocks(validRecords)
@@ -494,7 +502,8 @@ export async function POST(request) {
           processOptions.includePriceUp,
           processOptions.includePriceDown,
         ),
-      );
+      )
+      .map((result) => applyLowerThreshold(result, lowerThreshold));
 
     // Combine valid results with invalid records (marked with data errors)
     const results = [...validResults, ...invalidRecords];
@@ -507,15 +516,23 @@ export async function POST(request) {
     console.log("Data Error count:", count);
 
     const exportResults = filterResultsForExport(results, processOptions);
+    const blockedResults = filterBlockedResults(results);
     const csv = buildCsvFromResults(exportResults);
+    const blockedCsv =
+      blockedResults.length > 0
+        ? buildBlockedCsvFromResults(blockedResults)
+        : null;
 
     const statistics = calculateResultStatistics(results);
 
     return Response.json({
       ...statistics,
       csv,
+      blockedCsv,
+      blockedCount: blockedResults.length,
       results,
       processOptions,
+      lowerThreshold,
     });
   } catch (error) {
     console.error("Processing error:", error);

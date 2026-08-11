@@ -42,6 +42,7 @@ export function buildLogFromResults(results) {
   const prUp = 0;
   const prDown = summary?.decrease_within_strategy || 0;
   const issues = summary?.data_issues || 0;
+  const blocked = summary?.blocked || 0;
   const increase = Math.round(stats?.total_increment || 0);
   const drop = -Math.round(stats?.total_drop || 0);
   const net = Math.round(stats?.net_impact || 0);
@@ -54,6 +55,7 @@ export function buildLogFromResults(results) {
     prUp,
     prDown,
     issues,
+    blocked,
     drop,
     increase,
     net,
@@ -70,6 +72,7 @@ export const METRIC_OPTIONS = [
   { key: "prDown", label: "Price Refresh (Down)" },
   { key: "modifiedCount", label: "Total Modified Items" },
   { key: "issues", label: "Data Issues" },
+  { key: "blocked", label: "Blocked Decreases" },
   { key: "drop", label: "Total Price Drop (£)" },
   { key: "increase", label: "Total Price Increase (£)" },
   { key: "net", label: "Net Financial Impact (£)" },
@@ -143,6 +146,7 @@ export function aggregateLogs(logs) {
   let totalIncrease = 0;
   let totalNet = 0;
   let totalIssues = 0;
+  let totalBlocked = 0;
 
   enriched.forEach((row) => {
     totalUnits += row.units;
@@ -155,6 +159,7 @@ export function aggregateLogs(logs) {
     totalIncrease += row.increase;
     totalNet += row.net;
     totalIssues += row.issues;
+    totalBlocked += row.blocked || 0;
   });
 
   const weekendLogs = enriched.filter((r) => r.isWeekend);
@@ -177,6 +182,7 @@ export function aggregateLogs(logs) {
       increase: totalIncrease,
       net: totalNet,
       issues: totalIssues,
+      blocked: totalBlocked,
       modifiedUp: totalPCUp,
       modifiedDown: totalPCDown + totalPRDown,
     },

@@ -254,11 +254,11 @@ export default function DashboardPage() {
 
   const exportCSV = () => {
     const header =
-      "Date,Total Units,No Change,Price Change Up,Price Change Down,Price Refresh Down,Data Issues,Total Price Drop,Total Price Increase,Net Financial Impact,Saved At\r\n";
+      "Date,Total Units,No Change,Price Change Up,Price Change Down,Price Refresh Down,Data Issues,Blocked,Total Price Drop,Total Price Increase,Net Financial Impact,Saved At\r\n";
     const rows = filteredLogs
       .map(
         (row) =>
-          `${row.dateStr},${row.units},${row.noChange},${row.pcUp},${row.pcDown},${row.prDown},${row.issues},${row.drop},${row.increase},${row.net},${row.savedAt || ""}`,
+          `${row.dateStr},${row.units},${row.noChange},${row.pcUp},${row.pcDown},${row.prDown},${row.issues},${row.blocked || 0},${row.drop},${row.increase},${row.net},${row.savedAt || ""}`,
       )
       .join("\r\n");
 
@@ -526,6 +526,10 @@ export default function DashboardPage() {
                         Data issues in range: {totals.issues} total across{" "}
                         {filteredLogs.length} processing days
                       </li>
+                      <li className="text-slate-400">
+                        Blocked decreases in range: {totals.blocked || 0} total
+                        across {filteredLogs.length} processing days
+                      </li>
                     </ul>
                   </div>
 
@@ -632,6 +636,7 @@ export default function DashboardPage() {
                         "PC Down",
                         "PR Down",
                         "Issues",
+                        "Blocked",
                         "Total Drop",
                         "Total Increase",
                         "Net Impact",
@@ -666,6 +671,9 @@ export default function DashboardPage() {
                         <td className="px-4 py-3">{row.pcDown}</td>
                         <td className="px-4 py-3">{row.prDown}</td>
                         <td className="px-4 py-3">{row.issues}</td>
+                        <td className="px-4 py-3 text-orange-400">
+                          {row.blocked || 0}
+                        </td>
                         <td className="px-4 py-3 text-red-400 font-semibold">
                           {formatCurrency(row.drop, true)}
                         </td>

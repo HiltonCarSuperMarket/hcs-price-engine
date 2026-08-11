@@ -55,6 +55,7 @@ const DailySummaryLogSchema = new mongoose.Schema(
     prUp: { type: Number, required: true },
     prDown: { type: Number, required: true },
     issues: { type: Number, default: 0 },
+    blocked: { type: Number, default: 0 },
     drop: { type: Number, required: true },
     increase: { type: Number, required: true },
     net: { type: Number, required: true },

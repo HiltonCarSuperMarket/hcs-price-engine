@@ -5,7 +5,12 @@ import { Download, RotateCcw, Save, Check } from "lucide-react";
 import StatCard from "./StatCard";
 import { toastUtils } from "@/lib/utils";
 
-export default function ProcessingResults({ results, onDownload, onReset }) {
+export default function ProcessingResults({
+  results,
+  onDownload,
+  onDownloadBlocked,
+  onReset,
+}) {
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -107,6 +112,15 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             <Download className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Download CSV</span>
           </button>
+          {(summary?.blocked || 0) > 0 && (
+            <button
+              onClick={onDownloadBlocked}
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-orange-950/60 border border-orange-500/40 text-orange-200 rounded-lg hover:border-orange-400 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-semibold text-sm sm:text-base"
+            >
+              <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>Download Blocked ({summary.blocked})</span>
+            </button>
+          )}
           <button
             onClick={onReset}
             className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-900 border border-white/10 text-slate-400 rounded-lg hover:border-slate-500 hover:text-slate-200 transition-colors font-medium text-sm sm:text-base"
@@ -181,6 +195,15 @@ export default function ProcessingResults({ results, onDownload, onReset }) {
             label="Data Issues"
             value={summary?.data_issues || 0}
             description="Skipped - invalid data"
+            color="red"
+          />
+        )}
+
+        {(summary?.blocked || 0) > 0 && (
+          <StatCard
+            label="Blocked"
+            value={summary?.blocked || 0}
+            description="Decrease exceeded lower threshold"
             color="red"
           />
         )}
