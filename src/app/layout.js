@@ -8,7 +8,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Price2Profit",
+  title: "Price2Go",
   description: "Smart pricing strategy engine for inventory management",
   generator: "v0.app",
   icons: {
