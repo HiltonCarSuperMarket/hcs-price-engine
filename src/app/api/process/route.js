@@ -467,6 +467,7 @@ export async function POST(request) {
 
       // Live market condition — exact column only, strip trailing %
       const liveMarketRaw = record["Live market condition"];
+      console.log("Raw",liveMarketRaw)
       let liveMarketCondition = null;
       if (
         liveMarketRaw !== undefined &&
@@ -482,6 +483,8 @@ export async function POST(request) {
           liveMarketCondition = numVal;
         }
       }
+
+      console.log("Condition",liveMarketCondition)
 
       // Validation with more detailed error messages
       const errors = [];
