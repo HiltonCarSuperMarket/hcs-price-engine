@@ -1,7 +1,8 @@
 import connectDB from "@/lib/mongodb";
-import { DailySummaryLog } from "@/lib/models";
+import { ProcessLogRecord } from "@/lib/models";
 import {
-  buildLogFromResults,
+  buildLogRecordsFromResults,
+  deriveDailySummariesFromRecords,
   formatDateStr,
   toDateIso,
 } from "@/lib/logUtils";
@@ -13,19 +14,59 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const dateIso = searchParams.get("dateIso");
+    const detail = searchParams.get("detail") === "true";
+    const view = searchParams.get("view") || "all";
 
     const filter = {};
-    if (startDate || endDate) {
+    if (dateIso) {
+      filter.dateIso = dateIso;
+    } else if (startDate || endDate) {
       filter.dateIso = {};
       if (startDate) filter.dateIso.$gte = startDate;
       if (endDate) filter.dateIso.$lte = endDate;
     }
 
-    const logs = await DailySummaryLog.find(filter)
-      .sort({ dateIso: 1 })
+    const VIEW_CATEGORIES = {
+      all: null,
+      units: null,
+      pc_up: ["pc_up"],
+      pc_down: ["pc_down"],
+      pr_down: ["pr_down"],
+      issues: ["issue"],
+      blocked: ["blocked"],
+      increase: ["pc_up"],
+      drop: ["pc_down", "pr_down"],
+      net: ["pc_up", "pc_down", "pr_down"],
+    };
+
+    if (detail) {
+      const categories = VIEW_CATEGORIES[view];
+      if (categories) {
+        filter.category = { $in: categories };
+      }
+
+      const records = await ProcessLogRecord.find(filter)
+        .sort({ category: 1, stock_id: 1 })
+        .lean();
+
+      return Response.json({
+        success: true,
+        data: records,
+        meta: {
+          dateIso: dateIso || null,
+          view,
+          count: records.length,
+        },
+      });
+    }
+
+    const records = await ProcessLogRecord.find(filter)
+      .sort({ dateIso: 1, savedAt: 1 })
       .lean();
 
-    return Response.json({ success: true, data: logs });
+    const summaries = deriveDailySummariesFromRecords(records);
+    return Response.json({ success: true, data: summaries });
   } catch (error) {
     console.error("Failed to fetch logs:", error);
     return Response.json(
@@ -40,25 +81,30 @@ export async function DELETE(request) {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
+    const dateIso = searchParams.get("dateIso");
     const id = searchParams.get("id");
 
-    if (!id) {
+    if (!dateIso && !id) {
       return Response.json(
-        { success: false, error: "Log ID is required" },
+        { success: false, error: "dateIso or id is required" },
         { status: 400 },
       );
     }
 
-    const deleted = await DailySummaryLog.findByIdAndDelete(id);
+    const targetDate = dateIso || id;
+    const result = await ProcessLogRecord.deleteMany({ dateIso: targetDate });
 
-    if (!deleted) {
+    if (result.deletedCount === 0) {
       return Response.json(
         { success: false, error: "Log not found" },
         { status: 404 },
       );
     }
 
-    return Response.json({ success: true });
+    return Response.json({
+      success: true,
+      deletedCount: result.deletedCount,
+    });
   } catch (error) {
     console.error("Failed to delete log:", error);
     return Response.json(
@@ -77,43 +123,55 @@ export async function POST(request) {
     const dateIso = toDateIso(now);
     const dateStr = formatDateStr(now);
 
-    let logData;
-
-    if (body.stats && body.summary) {
-      logData = buildLogFromResults(body);
-    } else if (body.units !== undefined) {
-      logData = body;
-    } else {
+    if (!Array.isArray(body.results)) {
       return Response.json(
-        { success: false, error: "Invalid log payload" },
+        {
+          success: false,
+          error: "Invalid log payload — results array is required",
+        },
         { status: 400 },
       );
     }
 
-    const existing = await DailySummaryLog.findOne({ dateIso });
+    const logRows = buildLogRecordsFromResults(body.results);
+    const existingCount = await ProcessLogRecord.countDocuments({ dateIso });
 
-    const payload = {
-      ...logData,
-      dateStr,
-      dateIso,
-      savedAt: now,
-    };
+    await ProcessLogRecord.deleteMany({ dateIso });
 
-    let log;
-    if (existing) {
-      log = await DailySummaryLog.findOneAndUpdate(
-        { dateIso },
-        payload,
-        { new: true },
+    if (logRows.length > 0) {
+      await ProcessLogRecord.insertMany(
+        logRows.map((row) => ({
+          ...row,
+          dateIso,
+          dateStr,
+          savedAt: now,
+        })),
       );
-    } else {
-      log = await DailySummaryLog.create(payload);
     }
+
+    const summaries = deriveDailySummariesFromRecords(
+      await ProcessLogRecord.find({ dateIso }).lean(),
+    );
 
     return Response.json({
       success: true,
-      data: log,
-      updated: !!existing,
+      data: summaries[0] || {
+        dateIso,
+        dateStr,
+        savedAt: now,
+        units: 0,
+        pcUp: 0,
+        pcDown: 0,
+        prUp: 0,
+        prDown: 0,
+        issues: 0,
+        blocked: 0,
+        drop: 0,
+        increase: 0,
+        net: 0,
+      },
+      savedRecords: logRows.length,
+      updated: existingCount > 0,
     });
   } catch (error) {
     console.error("Failed to save log:", error);

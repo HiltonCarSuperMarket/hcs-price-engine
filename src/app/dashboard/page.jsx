@@ -62,6 +62,26 @@ function KpiCard({ label, value, sub, variant = "default" }) {
   );
 }
 
+function MetricLink({ dateIso, dateStr, view, children, className = "" }) {
+  if (!dateIso) {
+    return <span className={className}>{children}</span>;
+  }
+
+  const href = `/dashboard/records?dateIso=${encodeURIComponent(dateIso)}&view=${encodeURIComponent(view)}&dateStr=${encodeURIComponent(dateStr || "")}`;
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`underline decoration-white/20 underline-offset-2 hover:decoration-[#00dbcc] hover:text-[#00dbcc] transition-colors cursor-pointer ${className}`}
+      title="Open records in new tab"
+    >
+      {children}
+    </a>
+  );
+}
+
 function correlationLabel(r) {
   if (r === null) return "Insufficient data";
   const abs = Math.abs(r);
@@ -73,12 +93,27 @@ function correlationLabel(r) {
   return `${strength} ${direction} (r = ${r.toFixed(3)})`;
 }
 
+function getCurrentMonthRange() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    start: `${monthKey}-01`,
+    end: `${monthKey}-${String(lastDay).padStart(2, "0")}`,
+    preset: `month:${monthKey}`,
+    monthKey,
+  };
+}
+
 export default function DashboardPage() {
+  const initialMonth = useMemo(() => getCurrentMonthRange(), []);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [activePreset, setActivePreset] = useState("all");
+  const [startDate, setStartDate] = useState(initialMonth.start);
+  const [endDate, setEndDate] = useState(initialMonth.end);
+  const [activePreset, setActivePreset] = useState(initialMonth.preset);
   const [corrX, setCorrX] = useState("units");
   const [corrY, setCorrY] = useState("net");
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -100,49 +135,61 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      await fetch("/api/logs/seed", { method: "POST" });
-      await fetchLogs();
-    }
-    init();
+    fetchLogs();
   }, [fetchLogs]);
-
-  useEffect(() => {
-    if (logs.length > 0 && !startDate) {
-      setStartDate(logs[0].dateIso);
-      setEndDate(logs[logs.length - 1].dateIso);
-    }
-  }, [logs, startDate]);
 
   const monthOptions = useMemo(() => {
     const months = new Map();
+
+    // Always include the current calendar month
+    const current = getCurrentMonthRange();
+    const [year, monthNumber] = current.monthKey.split("-").map(Number);
+    months.set(
+      current.monthKey,
+      new Intl.DateTimeFormat("en-GB", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(new Date(Date.UTC(year, monthNumber - 1, 1))),
+    );
 
     logs.forEach((log) => {
       const month = log.dateIso?.slice(0, 7);
       if (!month || months.has(month)) return;
 
-      const [year, monthNumber] = month.split("-").map(Number);
+      const [y, m] = month.split("-").map(Number);
       months.set(
         month,
         new Intl.DateTimeFormat("en-GB", {
           month: "long",
           year: "numeric",
           timeZone: "UTC",
-        }).format(new Date(Date.UTC(year, monthNumber - 1, 1))),
+        }).format(new Date(Date.UTC(y, m - 1, 1))),
       );
     });
 
     return Array.from(months, ([value, label]) => ({ value, label })).sort(
-      (a, b) => a.value.localeCompare(b.value),
+      (a, b) => b.value.localeCompare(a.value),
     );
   }, [logs]);
 
+  // Ascending for charts (oldest → newest left to right)
   const filteredLogs = useMemo(() => {
-    if (!startDate || !endDate) return logs.map(enrichLog);
-    return logs
-      .filter((r) => r.dateIso >= startDate && r.dateIso <= endDate)
-      .map(enrichLog);
+    const rows =
+      !startDate || !endDate
+        ? logs
+        : logs.filter((r) => r.dateIso >= startDate && r.dateIso <= endDate);
+
+    return rows
+      .map(enrichLog)
+      .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
   }, [logs, startDate, endDate]);
+
+  // Newest first for the daily summary table
+  const tableLogs = useMemo(
+    () => [...filteredLogs].sort((a, b) => b.dateIso.localeCompare(a.dateIso)),
+    [filteredLogs],
+  );
 
   const { totals, weekendAvgNet, weekdayAvgNet, weekendCount, weekdayCount } =
     useMemo(() => aggregateLogs(filteredLogs), [filteredLogs]);
@@ -230,7 +277,7 @@ export default function DashboardPage() {
 
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/logs?id=${deleteTarget._id}`, {
+      const res = await fetch(`/api/logs?dateIso=${deleteTarget.dateIso}`, {
         method: "DELETE",
       });
       const json = await res.json();
@@ -240,7 +287,7 @@ export default function DashboardPage() {
       }
 
       setLogs((prev) =>
-        prev.filter((log) => String(log._id) !== String(deleteTarget._id)),
+        prev.filter((log) => log.dateIso !== deleteTarget.dateIso),
       );
       setDeleteTarget(null);
       toastUtils.success("Log deleted successfully");
@@ -254,11 +301,11 @@ export default function DashboardPage() {
 
   const exportCSV = () => {
     const header =
-      "Date,Total Units,No Change,Price Change Up,Price Change Down,Price Refresh Down,Data Issues,Blocked,Total Price Drop,Total Price Increase,Net Financial Impact,Saved At\r\n";
+      "Date,Total Units,Price Change Up,Price Change Down,Price Refresh Down,Data Issues,Blocked,Total Price Drop,Total Price Increase,Net Financial Impact,Saved At\r\n";
     const rows = filteredLogs
       .map(
         (row) =>
-          `${row.dateStr},${row.units},${row.noChange},${row.pcUp},${row.pcDown},${row.prDown},${row.issues},${row.blocked || 0},${row.drop},${row.increase},${row.net},${row.savedAt || ""}`,
+          `${row.dateStr},${row.units},${row.pcUp},${row.pcDown},${row.prDown},${row.issues},${row.blocked || 0},${row.drop},${row.increase},${row.net},${row.savedAt || ""}`,
       )
       .join("\r\n");
 
@@ -378,16 +425,11 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard
-                label="Units Processed"
+                label="Units Logged"
                 value={totals.units.toLocaleString()}
-                sub="Total stock items analyzed"
-              />
-              <KpiCard
-                label="No Change"
-                value={totals.noChange.toLocaleString()}
-                sub={`${totals.noChangePct.toFixed(1)}% of portfolio`}
+                sub="Saved records (excl. No Change)"
               />
               <KpiCard
                 label="Total Price Increases"
@@ -435,7 +477,7 @@ export default function DashboardPage() {
               </div>
               <div className="bg-slate-800 border border-white/5 rounded-2xl p-6">
                 <h2 className="text-lg font-semibold mb-4">
-                  Stability vs Change Intensity
+                  Change Intensity & Blocked %
                 </h2>
                 <NoChangePctChart data={chartData} />
               </div>
@@ -551,7 +593,7 @@ export default function DashboardPage() {
                   <thead>
                     <tr>
                       <th className="p-2 text-left text-[#00dbcc]"></th>
-                      {["units", "pcDown", "net", "noChangePct", "issues"].map(
+                      {["units", "pcDown", "net", "blockedPct", "issues"].map(
                         (key) => (
                           <th
                             key={key}
@@ -564,7 +606,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {["units", "pcDown", "net", "noChangePct", "issues"].map(
+                    {["units", "pcDown", "net", "blockedPct", "issues"].map(
                       (rowKey) => (
                         <tr key={rowKey} className="border-t border-white/5">
                           <td className="p-2 font-semibold text-slate-300">
@@ -577,7 +619,7 @@ export default function DashboardPage() {
                             "units",
                             "pcDown",
                             "net",
-                            "noChangePct",
+                            "blockedPct",
                             "issues",
                           ].map((colKey) => {
                             const r = correlationMatrix[rowKey]?.[colKey];
@@ -631,7 +673,6 @@ export default function DashboardPage() {
                         "Date",
                         "Saved At",
                         "Total Units",
-                        "No Change",
                         "PC Up",
                         "PC Down",
                         "PR Down",
@@ -652,7 +693,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredLogs.map((row) => (
+                    {tableLogs.map((row) => (
                       <tr
                         key={row.dateIso}
                         className="border-b border-white/5 hover:bg-white/[0.02]"
@@ -665,25 +706,92 @@ export default function DashboardPage() {
                             ? new Date(row.savedAt).toLocaleString("en-GB")
                             : "—"}
                         </td>
-                        <td className="px-4 py-3">{row.units}</td>
-                        <td className="px-4 py-3">{row.noChange}</td>
-                        <td className="px-4 py-3">{row.pcUp}</td>
-                        <td className="px-4 py-3">{row.pcDown}</td>
-                        <td className="px-4 py-3">{row.prDown}</td>
-                        <td className="px-4 py-3">{row.issues}</td>
+                        <td className="px-4 py-3">
+                          <MetricLink
+                            dateIso={row.dateIso}
+                            dateStr={row.dateStr}
+                            view="units"
+                          >
+                            {row.units}
+                          </MetricLink>
+                        </td>
+                        <td className="px-4 py-3">
+                          <MetricLink
+                            dateIso={row.dateIso}
+                            dateStr={row.dateStr}
+                            view="pc_up"
+                          >
+                            {row.pcUp}
+                          </MetricLink>
+                        </td>
+                        <td className="px-4 py-3">
+                          <MetricLink
+                            dateIso={row.dateIso}
+                            dateStr={row.dateStr}
+                            view="pc_down"
+                          >
+                            {row.pcDown}
+                          </MetricLink>
+                        </td>
+                        <td className="px-4 py-3">
+                          <MetricLink
+                            dateIso={row.dateIso}
+                            dateStr={row.dateStr}
+                            view="pr_down"
+                          >
+                            {row.prDown}
+                          </MetricLink>
+                        </td>
+                        <td className="px-4 py-3">
+                          <MetricLink
+                            dateIso={row.dateIso}
+                            dateStr={row.dateStr}
+                            view="issues"
+                          >
+                            {row.issues}
+                          </MetricLink>
+                        </td>
                         <td className="px-4 py-3 text-orange-400">
-                          {row.blocked || 0}
+                          <MetricLink
+                            dateIso={row.dateIso}
+                            dateStr={row.dateStr}
+                            view="blocked"
+                            className="text-orange-400"
+                          >
+                            {row.blocked || 0}
+                          </MetricLink>
                         </td>
                         <td className="px-4 py-3 text-red-400 font-semibold">
-                          {formatCurrency(row.drop, true)}
+                          <MetricLink
+                            dateIso={row.dateIso}
+                            dateStr={row.dateStr}
+                            view="drop"
+                            className="text-red-400 font-semibold"
+                          >
+                            {formatCurrency(row.drop, true)}
+                          </MetricLink>
                         </td>
                         <td className="px-4 py-3 text-emerald-400 font-semibold">
-                          {formatCurrency(row.increase, true)}
+                          <MetricLink
+                            dateIso={row.dateIso}
+                            dateStr={row.dateStr}
+                            view="increase"
+                            className="text-emerald-400 font-semibold"
+                          >
+                            {formatCurrency(row.increase, true)}
+                          </MetricLink>
                         </td>
                         <td
                           className={`px-4 py-3 font-semibold ${row.net >= 0 ? "text-emerald-400" : "text-red-400"}`}
                         >
-                          {formatCurrency(row.net, true)}
+                          <MetricLink
+                            dateIso={row.dateIso}
+                            dateStr={row.dateStr}
+                            view="net"
+                            className={`font-semibold ${row.net >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                          >
+                            {formatCurrency(row.net, true)}
+                          </MetricLink>
                         </td>
                         <td className="px-4 py-3">
                           <button

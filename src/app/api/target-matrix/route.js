@@ -81,8 +81,13 @@ export async function POST(request) {
 
     // Validate that all values are filled
     for (const [ageBand, ratingData] of Object.entries(targetMatrix)) {
-      for (const [ratingBand, value] of Object.entries(ratingData)) {
-        if (value === null || value === undefined || value === "") {
+      for (const [ratingBand, cell] of Object.entries(ratingData)) {
+        const rawValue =
+          cell && typeof cell === "object" && !Array.isArray(cell)
+            ? cell.value
+            : cell;
+
+        if (rawValue === null || rawValue === undefined || rawValue === "") {
           return new Response(
             JSON.stringify({
               success: false,
@@ -95,7 +100,7 @@ export async function POST(request) {
           );
         }
 
-        const numValue = parseFloat(value);
+        const numValue = parseFloat(rawValue);
         if (isNaN(numValue)) {
           return new Response(
             JSON.stringify({

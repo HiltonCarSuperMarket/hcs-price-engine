@@ -11,6 +11,9 @@ import {
   calculateResultStatistics,
   filterBlockedResults,
   filterResultsForExport,
+  parseMatrixCell,
+  resolveLiveMarketImpact,
+  sanitizeLiveMarketBands,
 } from "@/lib/processingUtils";
 
 // Pricing Engine Logic (ported from Python)
@@ -92,19 +95,9 @@ class PricingEngine {
   }
 
   getLiveMarketImpact(liveMarketValue) {
-    const bands = this.config.live_market_bands || [];
-    for (const band of bands) {
-      const bMin = band.min !== undefined && band.min !== null ? band.min : -Infinity;
-      const bMax = band.max !== undefined && band.max !== null ? band.max : Infinity;
-      if (liveMarketValue >= bMin && liveMarketValue <= bMax) {
-        return {
-          impact: Number(band.impact) || 0,
-          bandName: band.name,
-        };
-      }
-    }
-    throw new Error(
-      `Live market condition '${liveMarketValue}' not found in live market bands`,
+    return resolveLiveMarketImpact(
+      liveMarketValue,
+      this.config.live_market_bands || [],
     );
   }
 
@@ -141,15 +134,31 @@ class PricingEngine {
       throw new Error(`Age band '${ageBand}' not found in target matrix`);
     }
 
-    if (!this.config.target_matrix[ageBand][ratingBand]) {
+    const matrixCell = parseMatrixCell(
+      this.config.target_matrix[ageBand][ratingBand],
+    );
+    if (matrixCell.value == null) {
       throw new Error(
         `Rating '${stock.rating_band}' not found in matrix for ${ageBand}`,
       );
     }
 
-    const matrixPercent = this.config.target_matrix[ageBand][ratingBand];
-    const { impact: liveMarketImpact, bandName: liveMarketBand } =
-      this.getLiveMarketImpact(stock.live_market_condition);
+    const matrixPercent = matrixCell.value;
+    let liveMarketImpact = 0;
+    let liveMarketBand = "";
+
+    if (matrixCell.applyLiveMarket) {
+      if (
+        stock.live_market_condition == null ||
+        Number.isNaN(stock.live_market_condition)
+      ) {
+        throw new Error("Invalid/missing Live market condition");
+      }
+      const liveMarket = this.getLiveMarketImpact(stock.live_market_condition);
+      liveMarketImpact = liveMarket.impact;
+      liveMarketBand = liveMarket.bandName;
+    }
+
     const targetPercent = matrixPercent + liveMarketImpact;
     const targetPrice = refVal * (targetPercent / 100);
 
@@ -394,10 +403,11 @@ export async function POST(request) {
     const fullConfig = {
       ...strategyConfig,
       ...globalConfig,
-      live_market_bands:
+      live_market_bands: sanitizeLiveMarketBands(
         strategyConfig.live_market_bands?.length > 0
           ? strategyConfig.live_market_bands
           : defaultConfig.live_market_bands,
+      ),
     };
 
     // Parse CSV using Papa Parse
@@ -413,9 +423,12 @@ export async function POST(request) {
 
     // Validate and filter records for required fields
     const validRecords = [];
+    const validInputs = [];
     const invalidRecords = [];
 
     for (const record of records) {
+      const inputSnapshot = { ...record };
+
       // Try to find stock_id (multiple possible column names)
       const stockId =
         record.VRM ||
@@ -491,14 +504,13 @@ export async function POST(request) {
       if (age === 0 || isNaN(age)) errors.push("Invalid/missing age/mileage");
       if (rating === null)
         errors.push("Invalid/missing Auto Trader Retail Rating");
-      if (liveMarketCondition === null)
-        errors.push("Invalid/missing Live market condition");
 
       if (errors.length > 0) {
         invalidRecords.push({
           stock_id: stockId || "MISSING",
           current_price: currentPrice,
           reason: `Data Error: ${errors.join(", ")}`,
+          input: inputSnapshot,
         });
         continue;
       }
@@ -514,6 +526,7 @@ export async function POST(request) {
           : NaN;
       const reference_price = currentPrice; // Will be calculated by engine, use current as fallback
 
+      validInputs.push(inputSnapshot);
       validRecords.push({
         ...record,
         stock_id: stockId,
@@ -543,7 +556,11 @@ export async function POST(request) {
           processOptions.includePriceDown,
         ),
       )
-      .map((result) => applyLowerThreshold(result, lowerThreshold));
+      .map((result) => applyLowerThreshold(result, lowerThreshold))
+      .map((result, index) => ({
+        ...result,
+        input: validInputs[index] || {},
+      }));
 
     // Combine valid results with invalid records (marked with data errors)
     const results = [...validResults, ...invalidRecords];

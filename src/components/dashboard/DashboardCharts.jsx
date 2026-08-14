@@ -185,8 +185,8 @@ export function NoChangePctChart({ data }) {
         />
         <Line
           type="monotone"
-          dataKey="noChangePct"
-          name="No Change %"
+          dataKey="blockedPct"
+          name="Blocked %"
           stroke={CHART_COLORS.green}
           strokeWidth={2}
           dot={{ r: 3 }}

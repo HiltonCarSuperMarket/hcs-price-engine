@@ -40,8 +40,8 @@ export const defaultConfig = {
     { name: "40+", min: 40, impact: 1 },
     { name: "10 to 39", min: 10, max: 39, impact: 0 },
     { name: "-9 to 9", min: -9, max: 9, impact: -0.5 },
-    { name: "-29 to -10", min: -29, max: -10, impact: -1 },
-    { name: "-30 or lower", max: -30, impact: -1.5 },
+    { name: "-42 to -10", min: -42, max: -10, impact: -1 },
+    { name: "-43 or lower", max: -43, impact: -1.5 },
   ],
   target_matrix: {
     "0-15": {

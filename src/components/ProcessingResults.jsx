@@ -40,7 +40,7 @@ export default function ProcessingResults({
       const response = await fetch("/api/logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stats, summary }),
+        body: JSON.stringify({ results: results.results || [] }),
       });
 
       const data = await response.json();
@@ -51,8 +51,8 @@ export default function ProcessingResults({
       setSaved(true);
       toastUtils.success(
         data.updated
-          ? "Daily log updated for today"
-          : "Daily log saved successfully",
+          ? `Daily log updated (${data.savedRecords || 0} records)`
+          : `Daily log saved (${data.savedRecords || 0} records)`,
       );
     } catch (err) {
       toastUtils.error(err.message || "Failed to save log");
