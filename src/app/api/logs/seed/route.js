@@ -1,37 +1,25 @@
 import connectDB from "@/lib/mongodb";
-import { DailySummaryLog } from "@/lib/models";
-import { SEED_LOGS } from "@/lib/seedLogs";
+import { ProcessLogRecord } from "@/lib/models";
 
+/**
+ * Legacy seed endpoint — no longer seeds summary-only history.
+ * New dashboard uses ProcessLogRecord data from Save Log only.
+ */
 export async function POST() {
   try {
     await connectDB();
-
-    const existingCount = await DailySummaryLog.countDocuments();
-    if (existingCount > 0) {
-      return Response.json({
-        success: true,
-        seeded: 0,
-        message: "Database already contains logs",
-        total: existingCount,
-      });
-    }
-
-    const documents = SEED_LOGS.map((row) => ({
-      ...row,
-      savedAt: new Date(row.dateIso + "T12:00:00"),
-    }));
-
-    await DailySummaryLog.insertMany(documents);
-
+    const total = await ProcessLogRecord.countDocuments();
     return Response.json({
       success: true,
-      seeded: documents.length,
-      message: `Seeded ${documents.length} historical log entries`,
+      seeded: 0,
+      message:
+        "Legacy summary seed disabled. Dashboard uses detailed process logs from Save Log.",
+      total,
     });
   } catch (error) {
-    console.error("Failed to seed logs:", error);
+    console.error("Failed to check process logs:", error);
     return Response.json(
-      { success: false, error: error.message || "Failed to seed logs" },
+      { success: false, error: error.message || "Failed to check process logs" },
       { status: 500 },
     );
   }

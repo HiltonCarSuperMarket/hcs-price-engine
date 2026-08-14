@@ -1,5 +1,140 @@
 export const BLOCKED_REASON = "Blocked as exceeded lower threshold";
 
+/** Parse a live-market min/max; blank/null/NaN => open-ended */
+export function parseLiveMarketBound(raw, openValue) {
+  if (raw === undefined || raw === null || raw === "") return openValue;
+  const n = Number(String(raw).replace(/%/g, "").trim());
+  return Number.isNaN(n) ? openValue : n;
+}
+
+/**
+ * Resolve effective [min, max] for a live market band.
+ * - Empty bound => open-ended (-∞ / +∞)
+ * - Leftover default 0 on the opposite side of a signed bound is treated as open
+ *   (e.g. min:0 max:-43 => -∞ .. -43 for "or lower")
+ * - Reversed finite bounds are swapped
+ */
+export function getLiveMarketBandRange(band) {
+  let bMin = parseLiveMarketBound(band?.min, -Infinity);
+  let bMax = parseLiveMarketBound(band?.max, Infinity);
+
+  // New-band UI used to default min/max to 0. If only one side was edited,
+  // the leftover 0 must not close an "or lower" / "or higher" range.
+  const minProvided =
+    band?.min !== undefined && band?.min !== null && band?.min !== "";
+  const maxProvided =
+    band?.max !== undefined && band?.max !== null && band?.max !== "";
+
+  if (minProvided && bMin === 0 && maxProvided && bMax < 0) {
+    bMin = -Infinity;
+  }
+  if (maxProvided && bMax === 0 && minProvided && bMin > 0) {
+    bMax = Infinity;
+  }
+
+  if (bMin > bMax) {
+    const tmp = bMin;
+    bMin = bMax;
+    bMax = tmp;
+  }
+
+  return { min: bMin, max: bMax };
+}
+
+function formatLiveMarketRange(band) {
+  const { min, max } = getLiveMarketBandRange(band);
+  const loLabel = min === -Infinity ? "-∞" : min;
+  const hiLabel = max === Infinity ? "+∞" : max;
+  return `${band.name} [${loLabel} .. ${hiLabel}]`;
+}
+
+/** Find Live Market impact for a numeric condition value */
+export function resolveLiveMarketImpact(liveMarketValue, bands = []) {
+  const value = Number(
+    String(liveMarketValue ?? "")
+      .replace(/%/g, "")
+      .replace(/,/g, "")
+      .trim(),
+  );
+  if (Number.isNaN(value)) {
+    throw new Error(`Invalid live market condition '${liveMarketValue}'`);
+  }
+
+  for (const band of bands) {
+    const { min: bMin, max: bMax } = getLiveMarketBandRange(band);
+    if (value >= bMin && value <= bMax) {
+      const impactNum = Number(band.impact);
+      return {
+        impact: Number.isNaN(impactNum) ? 0 : impactNum,
+        bandName: band.name,
+      };
+    }
+  }
+
+  const ranges = (bands || []).map(formatLiveMarketRange).join("; ");
+
+  throw new Error(
+    `Live market condition '${value}' not found in live market bands (${ranges || "none configured"})`,
+  );
+}
+
+/** Normalize live market bands before save/process */
+export function sanitizeLiveMarketBands(bands = []) {
+  return bands.map((b) => {
+    const cleaned = { name: b.name || "Band", impact: 0 };
+    const impactNum = Number(b.impact);
+    cleaned.impact = Number.isNaN(impactNum) ? 0 : impactNum;
+
+    let minNum;
+    let maxNum;
+    if (b.min !== undefined && b.min !== null && b.min !== "") {
+      const n = Number(b.min);
+      if (!Number.isNaN(n)) minNum = n;
+    }
+    if (b.max !== undefined && b.max !== null && b.max !== "") {
+      const n = Number(b.max);
+      if (!Number.isNaN(n)) maxNum = n;
+    }
+
+    // Drop leftover default 0 that closes an open-ended signed range
+    if (minNum === 0 && maxNum != null && maxNum < 0) {
+      minNum = undefined;
+    }
+    if (maxNum === 0 && minNum != null && minNum > 0) {
+      maxNum = undefined;
+    }
+
+    if (minNum !== undefined) cleaned.min = minNum;
+    if (maxNum !== undefined) cleaned.max = maxNum;
+    return cleaned;
+  });
+}
+
+/** Read a matrix cell that may be a number (legacy) or { value, applyLiveMarket } */
+export function parseMatrixCell(cell) {
+  if (cell == null || cell === "") {
+    return { value: null, applyLiveMarket: false };
+  }
+
+  if (typeof cell === "object" && !Array.isArray(cell)) {
+    const raw = cell.value;
+    const value =
+      raw === null || raw === undefined || raw === ""
+        ? null
+        : Number(raw);
+    return {
+      value: value != null && !Number.isNaN(value) ? value : null,
+      applyLiveMarket: !!cell.applyLiveMarket,
+    };
+  }
+
+  const value = Number(cell);
+  return {
+    value: Number.isNaN(value) ? null : value,
+    applyLiveMarket: false,
+  };
+}
+
 export function getPriceChange(result) {
   return (result.new_price ?? 0) - (result.current_price ?? 0);
 }

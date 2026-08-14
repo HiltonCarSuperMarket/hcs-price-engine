@@ -8,7 +8,7 @@ export function PageSkeleton() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <HcsBrandNavbar
-        title="Price2Go"
+        title="Price2GO"
         subtitle="HCS Pricing Hub"
         homeHref="/"
         right={<Skeleton className="h-9 w-40 rounded-lg bg-white/20" />}

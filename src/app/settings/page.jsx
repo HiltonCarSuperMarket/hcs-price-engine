@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import RoundingDigitsPicker from "@/components/RoundingDigitsPicker";
 import { parseRoundingDigits } from "@/lib/roundingUtils";
 import { defaultConfig } from "@/lib/defaultConfig";
+import { sanitizeLiveMarketBands } from "@/lib/processingUtils";
 import {
   HcsBrandNavbar,
   navActionClass,
@@ -137,7 +138,12 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "save",
-          config: config,
+          config: {
+            ...config,
+            live_market_bands: sanitizeLiveMarketBands(
+              config.live_market_bands || [],
+            ),
+          },
         }),
       });
 
@@ -258,10 +264,25 @@ export default function SettingsPage() {
   const updateLiveMarketBand = (index, field, value) => {
     if (!config) return;
     const bands = [...(config.live_market_bands || [])];
-    bands[index] = {
-      ...bands[index],
-      [field]: value === "" ? undefined : value,
-    };
+    let nextValue = value;
+    if (field === "min" || field === "max") {
+      if (value === "" || value === undefined || value === null) {
+        nextValue = undefined;
+      } else {
+        const parsed = typeof value === "number" ? value : parseFloat(value);
+        nextValue = Number.isNaN(parsed) ? undefined : parsed;
+      }
+    }
+    const updated = { ...bands[index] };
+    if (
+      (field === "min" || field === "max") &&
+      nextValue === undefined
+    ) {
+      delete updated[field];
+    } else {
+      updated[field] = nextValue;
+    }
+    bands[index] = updated;
     setConfig({ ...config, live_market_bands: bands });
   };
 
@@ -271,7 +292,7 @@ export default function SettingsPage() {
       ...config,
       live_market_bands: [
         ...(config.live_market_bands || []),
-        { name: "New Band", min: 0, max: 0, impact: 0 },
+        { name: "New Band", impact: 0 },
       ],
     });
   };
@@ -286,13 +307,21 @@ export default function SettingsPage() {
 
   const updateMatrixValue = (ageBand, ratingBand, value) => {
     if (!config) return;
+    const existing = config.target_matrix?.[ageBand]?.[ratingBand];
+    const applyLiveMarket =
+      existing && typeof existing === "object"
+        ? !!existing.applyLiveMarket
+        : false;
     setConfig({
       ...config,
       target_matrix: {
         ...config.target_matrix,
         [ageBand]: {
           ...config.target_matrix[ageBand],
-          [ratingBand]: parseFloat(value) || 0,
+          [ratingBand]: {
+            value: parseFloat(value) || 0,
+            applyLiveMarket,
+          },
         },
       },
     });
@@ -804,9 +833,14 @@ export default function SettingsPage() {
             <div className="border-t border-white/10 p-4 sm:p-6 space-y-4">
               <p className="text-xs sm:text-sm text-slate-400">
                 Impact (PPT) is added to the Days in stock / AT Rating matrix
-                percentage. Reads column{" "}
+                percentage when the matrix cell has Live Market enabled. Reads
+                column{" "}
                 <span className="text-[#00dbcc]">Live market condition</span>{" "}
-                (trailing % is stripped).
+                (trailing % is stripped).                 Leave <strong className="text-slate-300">Min empty</strong> for
+                “or lower” (e.g. Max = -43, Min blank ⇒ -∞ .. -43). Leave{" "}
+                <strong className="text-slate-300">Max empty</strong> for “or
+                higher” (e.g. Min = 62, Max blank ⇒ 62 .. +∞). Make sure ranges
+                cover every value with no gaps.
               </p>
               {(config.live_market_bands || []).map((band, idx) => (
                 <div key={idx} className={bandRowClass}>
@@ -827,15 +861,9 @@ export default function SettingsPage() {
                     <input
                       type="number"
                       step="any"
-                      value={band.min === undefined ? "" : band.min}
+                      value={band.min == null || Number.isNaN(band.min) ? "" : band.min}
                       onChange={(e) =>
-                        updateLiveMarketBand(
-                          idx,
-                          "min",
-                          e.target.value === ""
-                            ? undefined
-                            : parseFloat(e.target.value),
-                        )
+                        updateLiveMarketBand(idx, "min", e.target.value)
                       }
                       placeholder="Open-ended"
                       className={inputClassSm}
@@ -847,15 +875,9 @@ export default function SettingsPage() {
                     <input
                       type="number"
                       step="any"
-                      value={band.max === undefined ? "" : band.max}
+                      value={band.max == null || Number.isNaN(band.max) ? "" : band.max}
                       onChange={(e) =>
-                        updateLiveMarketBand(
-                          idx,
-                          "max",
-                          e.target.value === ""
-                            ? undefined
-                            : parseFloat(e.target.value),
-                        )
+                        updateLiveMarketBand(idx, "max", e.target.value)
                       }
                       placeholder="Open-ended"
                       className={inputClassSm}

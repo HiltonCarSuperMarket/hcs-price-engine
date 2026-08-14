@@ -1,3 +1,5 @@
+import { BLOCKED_REASON, getPriceChange, isBlockedResult } from "@/lib/processingUtils";
+
 const ORDINALS = ["th", "st", "nd", "rd"];
 
 function ordinal(n) {
@@ -31,41 +33,155 @@ export function toDateIso(date) {
   return `${y}-${m}-${d}`;
 }
 
-/** Build a daily summary log payload from processing results */
-export function buildLogFromResults(results) {
-  const { stats, summary } = results;
+/**
+ * Classify a processed result for log storage.
+ * Returns null for No Change (and other non-logged outcomes).
+ */
+export function classifyLogRecord(result) {
+  if (!result) return null;
+  if (isBlockedResult(result) || result.reason === BLOCKED_REASON) {
+    return "blocked";
+  }
+  if (result.reason?.includes("Data Error")) return "issue";
 
-  const noChange = summary?.not_change || 0;
-  const pcUp =
-    (summary?.price_increase || 0) + (summary?.increase_within_strategy || 0);
-  const pcDown = summary?.price_decrease || 0;
-  const prUp = 0;
-  const prDown = summary?.decrease_within_strategy || 0;
-  const issues = summary?.data_issues || 0;
-  const blocked = summary?.blocked || 0;
-  const increase = Math.round(stats?.total_increment || 0);
-  const drop = -Math.round(stats?.total_drop || 0);
-  const net = Math.round(stats?.net_impact || 0);
+  const change = getPriceChange(result);
+  const reason = result.reason || "";
 
-  return {
-    units: summary?.total_stocks || 0,
-    noChange,
-    pcUp,
-    pcDown,
-    prUp,
-    prDown,
-    issues,
-    blocked,
-    drop,
-    increase,
-    net,
-  };
+  if (change > 0) {
+    if (
+      reason.includes("Increase to target") ||
+      reason.includes("Nudge applied")
+    ) {
+      return "pc_up";
+    }
+  }
+
+  if (change < 0) {
+    if (reason.includes("Decrease to target")) return "pc_down";
+    if (reason.includes("Nudge applied")) return "pr_down";
+  }
+
+  return null;
+}
+
+/** Build persistable log rows from process results (skips No Change) */
+export function buildLogRecordsFromResults(results = []) {
+  const rows = [];
+
+  for (const r of results) {
+    const category = classifyLogRecord(r);
+    if (!category) continue;
+
+    const amountChange = getPriceChange(r);
+    rows.push({
+      category,
+      stock_id: r.stock_id || r.input?.stock_id || "",
+      current_price: r.current_price ?? null,
+      reference_price: r.reference_price ?? null,
+      matrix_percent: r.matrix_percent ?? null,
+      live_market_impact: r.live_market_impact ?? null,
+      live_market_band: r.live_market_band || "",
+      live_market_condition: r.live_market_condition ?? null,
+      target_percent: r.target_percent ?? null,
+      target_price: r.target_price ?? null,
+      new_price: r.new_price ?? null,
+      amount_change: amountChange,
+      age_days: r.age_days ?? null,
+      at_rating: r.at_rating ?? null,
+      days_since_last_change: Number.isNaN(r.days_since_last_change)
+        ? null
+        : (r.days_since_last_change ?? null),
+      reason: r.reason || "",
+      blocked_new_price: r.blocked_new_price ?? null,
+      blocked_amount: r.blocked_amount ?? null,
+      input: r.input && typeof r.input === "object" ? r.input : {},
+    });
+  }
+
+  return rows;
+}
+
+/** Aggregate stored process records into daily dashboard summaries */
+export function deriveDailySummariesFromRecords(records = []) {
+  const byDate = new Map();
+
+  for (const r of records) {
+    if (!byDate.has(r.dateIso)) {
+      byDate.set(r.dateIso, {
+        dateIso: r.dateIso,
+        dateStr: r.dateStr,
+        savedAt: r.savedAt,
+        pcUp: 0,
+        pcDown: 0,
+        prUp: 0,
+        prDown: 0,
+        issues: 0,
+        blocked: 0,
+        increase: 0,
+        dropAbs: 0,
+        units: 0,
+      });
+    }
+
+    const day = byDate.get(r.dateIso);
+    day.units += 1;
+    if (r.savedAt && new Date(r.savedAt) > new Date(day.savedAt || 0)) {
+      day.savedAt = r.savedAt;
+      day.dateStr = r.dateStr || day.dateStr;
+    }
+
+    const change = Number(r.amount_change) || 0;
+
+    switch (r.category) {
+      case "pc_up":
+        day.pcUp += 1;
+        if (change > 0) day.increase += change;
+        break;
+      case "pc_down":
+        day.pcDown += 1;
+        if (change < 0) day.dropAbs += -change;
+        break;
+      case "pr_down":
+        day.prDown += 1;
+        if (change < 0) day.dropAbs += -change;
+        break;
+      case "issue":
+        day.issues += 1;
+        break;
+      case "blocked":
+        day.blocked += 1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return Array.from(byDate.values())
+    .map((day) => {
+      const increase = Math.round(day.increase);
+      const dropAbs = Math.round(day.dropAbs);
+      return {
+        _id: day.dateIso,
+        dateIso: day.dateIso,
+        dateStr: day.dateStr,
+        savedAt: day.savedAt,
+        units: day.units,
+        pcUp: day.pcUp,
+        pcDown: day.pcDown,
+        prUp: day.prUp,
+        prDown: day.prDown,
+        issues: day.issues,
+        blocked: day.blocked,
+        increase,
+        drop: -dropAbs,
+        net: increase - dropAbs,
+      };
+    })
+    .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
 }
 
 export const METRIC_OPTIONS = [
   { key: "units", label: "Total Units" },
-  { key: "noChange", label: "No Change Count" },
-  { key: "noChangePct", label: "No Change %" },
   { key: "pcUp", label: "Price Change (Up)" },
   { key: "pcDown", label: "Price Change (Down)" },
   { key: "prUp", label: "Price Refresh (Up)" },
@@ -73,6 +189,7 @@ export const METRIC_OPTIONS = [
   { key: "modifiedCount", label: "Total Modified Items" },
   { key: "issues", label: "Data Issues" },
   { key: "blocked", label: "Blocked Decreases" },
+  { key: "blockedPct", label: "Blocked %" },
   { key: "drop", label: "Total Price Drop (£)" },
   { key: "increase", label: "Total Price Increase (£)" },
   { key: "net", label: "Net Financial Impact (£)" },
@@ -81,12 +198,14 @@ export const METRIC_OPTIONS = [
 ];
 
 export function enrichLog(row) {
-  const modifiedCount = row.pcUp + row.pcDown + row.prUp + row.prDown;
-  const noChangePct = row.units > 0 ? (row.noChange / row.units) * 100 : 0;
-  const changeIntensity =
-    row.units > 0 ? (modifiedCount / row.units) * 100 : 0;
-  const priceChangeTotal = row.pcUp + row.pcDown;
-  const refreshTotal = row.prUp + row.prDown;
+  const modifiedCount =
+    (row.pcUp || 0) + (row.pcDown || 0) + (row.prUp || 0) + (row.prDown || 0);
+  const units = row.units || 0;
+  const blocked = row.blocked || 0;
+  const changeIntensity = units > 0 ? (modifiedCount / units) * 100 : 0;
+  const blockedPct = units > 0 ? (blocked / units) * 100 : 0;
+  const priceChangeTotal = (row.pcUp || 0) + (row.pcDown || 0);
+  const refreshTotal = (row.prUp || 0) + (row.prDown || 0);
   const refreshRatio =
     priceChangeTotal > 0 ? refreshTotal / priceChangeTotal : refreshTotal;
 
@@ -97,8 +216,8 @@ export function enrichLog(row) {
   return {
     ...row,
     modifiedCount,
-    noChangePct,
     changeIntensity,
+    blockedPct,
     refreshRatio,
     isWeekend,
     dayName: WEEKDAYS[dayOfWeek],
@@ -137,7 +256,6 @@ export function aggregateLogs(logs) {
   const enriched = logs.map(enrichLog);
 
   let totalUnits = 0;
-  let totalNoChange = 0;
   let totalPCUp = 0;
   let totalPCDown = 0;
   let totalPRUp = 0;
@@ -149,16 +267,15 @@ export function aggregateLogs(logs) {
   let totalBlocked = 0;
 
   enriched.forEach((row) => {
-    totalUnits += row.units;
-    totalNoChange += row.noChange;
-    totalPCUp += row.pcUp;
-    totalPCDown += row.pcDown;
-    totalPRUp += row.prUp;
-    totalPRDown += row.prDown;
-    totalDrop += row.drop;
-    totalIncrease += row.increase;
-    totalNet += row.net;
-    totalIssues += row.issues;
+    totalUnits += row.units || 0;
+    totalPCUp += row.pcUp || 0;
+    totalPCDown += row.pcDown || 0;
+    totalPRUp += row.prUp || 0;
+    totalPRDown += row.prDown || 0;
+    totalDrop += row.drop || 0;
+    totalIncrease += row.increase || 0;
+    totalNet += row.net || 0;
+    totalIssues += row.issues || 0;
     totalBlocked += row.blocked || 0;
   });
 
@@ -172,8 +289,6 @@ export function aggregateLogs(logs) {
     enriched,
     totals: {
       units: totalUnits,
-      noChange: totalNoChange,
-      noChangePct: totalUnits > 0 ? (totalNoChange / totalUnits) * 100 : 0,
       pcUp: totalPCUp,
       pcDown: totalPCDown,
       prUp: totalPRUp,
