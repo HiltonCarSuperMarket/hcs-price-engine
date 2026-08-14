@@ -466,25 +466,7 @@ export async function POST(request) {
       }
 
       // Live market condition — exact column only, strip trailing %
-      const liveMarketRaw = record["Live market condition"];
-      console.log("Raw",liveMarketRaw)
-      let liveMarketCondition = null;
-      if (
-        liveMarketRaw !== undefined &&
-        liveMarketRaw !== null &&
-        String(liveMarketRaw).trim() !== "" &&
-        String(liveMarketRaw).trim().toLowerCase() !== "nan" &&
-        String(liveMarketRaw).trim() !== "None"
-      ) {
-        const numVal = Number(
-          String(liveMarketRaw).replace(/%/g, "").replace(/,/g, "").trim(),
-        );
-        if (!Number.isNaN(numVal)) {
-          liveMarketCondition = numVal;
-        }
-      }
-
-      console.log("Condition",liveMarketCondition)
+      const liveMarketRaw = record["Live market condition"]; console.log("Raw", liveMarketRaw); let liveMarketCondition = null; if (liveMarketRaw !== undefined && liveMarketRaw !== null) { const raw = String(liveMarketRaw).trim(); if ( raw !== "" && raw.toLowerCase() !== "nan" && raw.toLowerCase() !== "none" ) { const cleaned = raw.replace(/%/g, "").replace(/,/g, "").trim(); const numVal = Number(cleaned); if (Number.isFinite(numVal)) { liveMarketCondition = numVal; } } } console.log("Condition", liveMarketCondition);
 
       // Validation with more detailed error messages
       const errors = [];
