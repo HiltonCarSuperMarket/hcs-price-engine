@@ -466,7 +466,22 @@ export async function POST(request) {
       }
 
       // Live market condition — exact column only, strip trailing %
-      const liveMarketRaw = record["Live market condition"]; console.log("Raw", liveMarketRaw); let liveMarketCondition = null; if (liveMarketRaw !== undefined && liveMarketRaw !== null) { const raw = String(liveMarketRaw).trim(); if ( raw !== "" && raw.toLowerCase() !== "nan" && raw.toLowerCase() !== "none" ) { const cleaned = raw.replace(/%/g, "").replace(/,/g, "").trim(); const numVal = Number(cleaned); if (Number.isFinite(numVal)) { liveMarketCondition = numVal; } } } console.log("Condition", liveMarketCondition);
+      const liveMarketRaw = record["Live market condition"]; 
+      console.log("Raw", liveMarketRaw); 
+      let liveMarketCondition = null; 
+      if (liveMarketRaw !== undefined && liveMarketRaw !== null) { 
+        const raw = String(liveMarketRaw).trim(); 
+        console.log(raw);
+          if ( raw !== "" && raw.toLowerCase() !== "nan" && raw.toLowerCase() !== "none" ) 
+            { const cleaned = raw
+              .replace(/%/g, "")
+              .replace(/,/g, "")
+              .replace(/\s+/g, "")   // remove ALL whitespace, including between sign and digits
+              .trim(); 
+              const numVal = Number(cleaned); 
+              if (Number.isFinite(numVal)) 
+                { liveMarketCondition = numVal; } } } 
+              console.log("Condition", liveMarketCondition);
 
       // Validation with more detailed error messages
       const errors = [];
