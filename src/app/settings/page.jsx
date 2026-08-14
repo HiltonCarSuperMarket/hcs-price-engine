@@ -8,6 +8,7 @@ import { ConfigSkeleton } from "@/components/SkeletonLoader";
 import { Skeleton } from "@/components/ui/skeleton";
 import RoundingDigitsPicker from "@/components/RoundingDigitsPicker";
 import { parseRoundingDigits } from "@/lib/roundingUtils";
+import { defaultConfig } from "@/lib/defaultConfig";
 import {
   HcsBrandNavbar,
   navActionClass,
@@ -54,6 +55,7 @@ export default function SettingsPage() {
   const [expandedSections, setExpandedSections] = useState({
     age: true,
     rating: false,
+    liveMarket: false,
     matrix: false,
     global: false,
   });
@@ -89,7 +91,13 @@ export default function SettingsPage() {
           });
         }
 
-        setConfig(defaultStrategy);
+        setConfig({
+          ...defaultStrategy,
+          live_market_bands:
+            defaultStrategy.live_market_bands?.length > 0
+              ? defaultStrategy.live_market_bands
+              : defaultConfig.live_market_bands,
+        });
       } else {
         toastUtils.error(data.error || "Failed to load configuration");
       }
@@ -244,6 +252,35 @@ export default function SettingsPage() {
     setConfig({
       ...config,
       rating_bands: config.rating_bands.filter((_, i) => i !== index),
+    });
+  };
+
+  const updateLiveMarketBand = (index, field, value) => {
+    if (!config) return;
+    const bands = [...(config.live_market_bands || [])];
+    bands[index] = {
+      ...bands[index],
+      [field]: value === "" ? undefined : value,
+    };
+    setConfig({ ...config, live_market_bands: bands });
+  };
+
+  const addLiveMarketBand = () => {
+    if (!config) return;
+    setConfig({
+      ...config,
+      live_market_bands: [
+        ...(config.live_market_bands || []),
+        { name: "New Band", min: 0, max: 0, impact: 0 },
+      ],
+    });
+  };
+
+  const removeLiveMarketBand = (index) => {
+    if (!config || (config.live_market_bands || []).length <= 1) return;
+    setConfig({
+      ...config,
+      live_market_bands: config.live_market_bands.filter((_, i) => i !== index),
     });
   };
 
@@ -737,6 +774,129 @@ export default function SettingsPage() {
               >
                 <Plus className="w-4 h-4" />
                 Add Rating Band
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Live Market Bands Section */}
+        <div className={sectionClass}>
+          <button
+            onClick={() =>
+              setExpandedSections({
+                ...expandedSections,
+                liveMarket: !expandedSections.liveMarket,
+              })
+            }
+            className={sectionHeaderClass}
+          >
+            <h2 className="text-base sm:text-lg font-semibold text-slate-50">
+              Live Market Bands
+            </h2>
+            <ChevronDown
+              className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${
+                expandedSections.liveMarket ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {expandedSections.liveMarket && (
+            <div className="border-t border-white/10 p-4 sm:p-6 space-y-4">
+              <p className="text-xs sm:text-sm text-slate-400">
+                Impact (PPT) is added to the Days in stock / AT Rating matrix
+                percentage. Reads column{" "}
+                <span className="text-[#00dbcc]">Live market condition</span>{" "}
+                (trailing % is stripped).
+              </p>
+              {(config.live_market_bands || []).map((band, idx) => (
+                <div key={idx} className={bandRowClass}>
+                  <div className="flex-1 min-w-0">
+                    <label className={labelClassSm}>Band Name</label>
+                    <input
+                      type="text"
+                      value={band.name}
+                      onChange={(e) =>
+                        updateLiveMarketBand(idx, "name", e.target.value)
+                      }
+                      className={inputClassSm}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <label className={labelClassSm}>Min</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={band.min === undefined ? "" : band.min}
+                      onChange={(e) =>
+                        updateLiveMarketBand(
+                          idx,
+                          "min",
+                          e.target.value === ""
+                            ? undefined
+                            : parseFloat(e.target.value),
+                        )
+                      }
+                      placeholder="Open-ended"
+                      className={inputClassSm}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <label className={labelClassSm}>Max</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={band.max === undefined ? "" : band.max}
+                      onChange={(e) =>
+                        updateLiveMarketBand(
+                          idx,
+                          "max",
+                          e.target.value === ""
+                            ? undefined
+                            : parseFloat(e.target.value),
+                        )
+                      }
+                      placeholder="Open-ended"
+                      className={inputClassSm}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <label className={labelClassSm}>Impact (PPT)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={band.impact ?? 0}
+                      onChange={(e) =>
+                        updateLiveMarketBand(
+                          idx,
+                          "impact",
+                          parseFloat(e.target.value) || 0,
+                        )
+                      }
+                      className={inputClassSm}
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => removeLiveMarketBand(idx)}
+                    disabled={(config.live_market_bands || []).length <= 1}
+                    className="px-3 py-2 text-red-400 hover:bg-red-950/30 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center sm:justify-start gap-2"
+                    aria-label="Remove live market band"
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="sm:hidden text-xs">Remove</span>
+                  </button>
+                </div>
+              ))}
+
+              <button
+                onClick={addLiveMarketBand}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 text-[#00dbcc] hover:bg-teal-950/30 rounded-lg transition-colors font-medium border border-[#00dbcc]/30 hover:border-[#00dbcc]"
+              >
+                <Plus className="w-4 h-4" />
+                Add Live Market Band
               </button>
             </div>
           )}

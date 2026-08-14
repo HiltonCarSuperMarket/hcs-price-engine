@@ -19,6 +19,7 @@ const StrategySchema = new mongoose.Schema(
     phase_bands: mongoose.Schema.Types.Mixed,
     age_bands: mongoose.Schema.Types.Mixed, // Flexible array of band objects
     rating_bands: mongoose.Schema.Types.Mixed, // Flexible array of band objects
+    live_market_bands: mongoose.Schema.Types.Mixed, // Live market condition bands + impact (PPT)
     target_matrix: mongoose.Schema.Types.Mixed, // Dynamic matrix based on bands
     isActive: {
       type: Boolean,

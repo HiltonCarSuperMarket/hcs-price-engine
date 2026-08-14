@@ -202,12 +202,15 @@ export function buildCsvFromResults(results) {
       "stock_id",
       "current_price",
       "reference_price",
+      "matrix_percent",
+      "live_market_impact",
       "target_percent",
       "target_price",
       "new_price",
       "Amount change",
       "Days in Stock",
       "AT Rating",
+      "Live market condition",
       "Days since last price change",
       "reason",
     ].join(","),
@@ -224,21 +227,30 @@ export function buildCsvFromResults(results) {
           "",
           "",
           "",
+          "",
+          "",
+          "",
           `"${r.reason}"`,
         ].join(",");
       }
 
       const amountChange = r.new_price - r.current_price;
+      const matrixPercent =
+        r.matrix_percent != null ? r.matrix_percent : r.target_percent;
+      const impact = r.live_market_impact != null ? r.live_market_impact : 0;
       return [
         r.stock_id,
         Math.round(r.current_price || 0),
         Math.round(r.reference_price || 0),
-        `${r.target_percent.toFixed(2)}%`,
+        `${Number(matrixPercent).toFixed(2)}%`,
+        Number(impact).toFixed(2),
+        `${Number(r.target_percent).toFixed(2)}%`,
         Math.round(r.target_price || 0),
         Math.round(r.new_price || 0),
         amountChange.toFixed(0),
         r.age_days || "",
         r.at_rating || "",
+        r.live_market_condition != null ? r.live_market_condition : "",
         r.days_since_last_change ?? "",
         `"${r.reason || "Unknown"}"`,
       ].join(",");
@@ -253,28 +265,39 @@ export function buildBlockedCsvFromResults(results) {
       "stock_id",
       "current_price",
       "reference_price",
+      "matrix_percent",
+      "live_market_impact",
       "target_percent",
       "target_price",
       "intended_new_price",
       "blocked_amount",
       "Days in Stock",
       "AT Rating",
+      "Live market condition",
       "Days since last price change",
       "reason",
     ].join(","),
-    ...results.map((r) => [
-      r.stock_id,
-      Math.round(r.current_price || 0),
-      Math.round(r.reference_price || 0),
-      `${r.target_percent.toFixed(2)}%`,
-      Math.round(r.target_price || 0),
-      Math.round(r.blocked_new_price || 0),
-      Math.round(r.blocked_amount || 0),
-      r.age_days || "",
-      r.at_rating || "",
-      r.days_since_last_change ?? "",
-      `"${r.reason || BLOCKED_REASON}"`,
-    ].join(",")),
+    ...results.map((r) => {
+      const matrixPercent =
+        r.matrix_percent != null ? r.matrix_percent : r.target_percent;
+      const impact = r.live_market_impact != null ? r.live_market_impact : 0;
+      return [
+        r.stock_id,
+        Math.round(r.current_price || 0),
+        Math.round(r.reference_price || 0),
+        `${Number(matrixPercent).toFixed(2)}%`,
+        Number(impact).toFixed(2),
+        `${Number(r.target_percent).toFixed(2)}%`,
+        Math.round(r.target_price || 0),
+        Math.round(r.blocked_new_price || 0),
+        Math.round(r.blocked_amount || 0),
+        r.age_days || "",
+        r.at_rating || "",
+        r.live_market_condition != null ? r.live_market_condition : "",
+        r.days_since_last_change ?? "",
+        `"${r.reason || BLOCKED_REASON}"`,
+      ].join(",");
+    }),
   ];
   return csvLines.join("\n");
 }
