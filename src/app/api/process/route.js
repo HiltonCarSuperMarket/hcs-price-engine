@@ -2,6 +2,7 @@ import Papa from "papaparse";
 import connectDB from "@/lib/mongodb";
 import { Configuration } from "@/lib/models";
 import { parseRoundingDigits, roundToEndingDigits } from "@/lib/roundingUtils";
+import { defaultConfig } from "@/lib/defaultConfig";
 import {
   applyDirectionFilter,
   applyLowerThreshold,
@@ -90,6 +91,23 @@ class PricingEngine {
     return "78+"; // Default to highest band if can't parse
   }
 
+  getLiveMarketImpact(liveMarketValue) {
+    const bands = this.config.live_market_bands || [];
+    for (const band of bands) {
+      const bMin = band.min !== undefined && band.min !== null ? band.min : -Infinity;
+      const bMax = band.max !== undefined && band.max !== null ? band.max : Infinity;
+      if (liveMarketValue >= bMin && liveMarketValue <= bMax) {
+        return {
+          impact: Number(band.impact) || 0,
+          bandName: band.name,
+        };
+      }
+    }
+    throw new Error(
+      `Live market condition '${liveMarketValue}' not found in live market bands`,
+    );
+  }
+
   calculateTarget(stock) {
     const refCol = this.config.reference_column;
     let refVal;
@@ -129,10 +147,20 @@ class PricingEngine {
       );
     }
 
-    const targetPercent = this.config.target_matrix[ageBand][ratingBand];
+    const matrixPercent = this.config.target_matrix[ageBand][ratingBand];
+    const { impact: liveMarketImpact, bandName: liveMarketBand } =
+      this.getLiveMarketImpact(stock.live_market_condition);
+    const targetPercent = matrixPercent + liveMarketImpact;
     const targetPrice = refVal * (targetPercent / 100);
 
-    return { refVal, targetPercent, targetPrice };
+    return {
+      refVal,
+      targetPercent,
+      targetPrice,
+      matrixPercent,
+      liveMarketImpact,
+      liveMarketBand,
+    };
   }
 
   getToleranceAbs(refVal) {
@@ -205,8 +233,14 @@ class PricingEngine {
 
   calculateNewPrice(stock) {
     try {
-      const { refVal, targetPercent, targetPrice } =
-        this.calculateTarget(stock);
+      const {
+        refVal,
+        targetPercent,
+        targetPrice,
+        matrixPercent,
+        liveMarketImpact,
+        liveMarketBand,
+      } = this.calculateTarget(stock);
 
       let finalPrice = stock.current_price;
       let reason = "No change";
@@ -254,6 +288,10 @@ class PricingEngine {
         stock_id: stock.stock_id,
         current_price: stock.current_price,
         reference_price: refVal,
+        matrix_percent: matrixPercent,
+        live_market_impact: liveMarketImpact,
+        live_market_band: liveMarketBand,
+        live_market_condition: stock.live_market_condition,
         target_percent: targetPercent,
         target_price: targetPrice,
         new_price: finalPrice,
@@ -267,6 +305,10 @@ class PricingEngine {
         stock_id: stock.stock_id,
         current_price: stock.current_price,
         reference_price: 0,
+        matrix_percent: 0,
+        live_market_impact: 0,
+        live_market_band: "",
+        live_market_condition: stock.live_market_condition,
         target_percent: 0,
         target_price: 0,
         new_price: stock.current_price,
@@ -352,6 +394,10 @@ export async function POST(request) {
     const fullConfig = {
       ...strategyConfig,
       ...globalConfig,
+      live_market_bands:
+        strategyConfig.live_market_bands?.length > 0
+          ? strategyConfig.live_market_bands
+          : defaultConfig.live_market_bands,
     };
 
     // Parse CSV using Papa Parse
@@ -403,48 +449,38 @@ export async function POST(request) {
         0;
       const age = parseFloat(String(ageValue).replace(/[,]/g, "")) || 0;
 
-      // Try to find rating (Auto Trader Retail Rating is most common, can also use numeric values from Performance rating score)
-      let ratingValue =
-        record["Auto Trader Retail Rating"] ||
-        record["rating"] ||
-        record["Rating"] ||
-        record["at_rating"];
-      let rating = 0;
-
+      // Auto Trader Retail Rating — exact column only, no fallbacks
+      const ratingRaw = record["Auto Trader Retail Rating"];
+      let rating = null;
       if (
-        ratingValue !== undefined &&
-        ratingValue !== null &&
-        ratingValue !== "None" &&
-        String(ratingValue).trim() !== ""
+        ratingRaw !== undefined &&
+        ratingRaw !== null &&
+        String(ratingRaw).trim() !== "" &&
+        String(ratingRaw).trim().toLowerCase() !== "nan" &&
+        String(ratingRaw).trim() !== "None"
       ) {
-        const numVal = Number(String(ratingValue).replace(/[,]/g, ""));
+        const numVal = Number(String(ratingRaw).replace(/[,]/g, "").trim());
         if (!Number.isNaN(numVal)) {
-          rating = numVal; // keep original numeric value, no scale change
+          rating = numVal;
         }
       }
 
-      // If no rating found from Auto Trader, try Performance rating score
-      if (rating === 0) {
-        let perfScore = record["Performance rating score"] || 0;
-        if (perfScore && String(perfScore).trim() !== "") {
-          const numVal = parseFloat(String(perfScore).replace(/[,]/g, ""));
-          if (!isNaN(numVal) && numVal > 0) {
-            rating = numVal;
-          }
+      // Live market condition — exact column only, strip trailing %
+      const liveMarketRaw = record["Live market condition"];
+      let liveMarketCondition = null;
+      if (
+        liveMarketRaw !== undefined &&
+        liveMarketRaw !== null &&
+        String(liveMarketRaw).trim() !== "" &&
+        String(liveMarketRaw).trim().toLowerCase() !== "nan" &&
+        String(liveMarketRaw).trim() !== "None"
+      ) {
+        const numVal = Number(
+          String(liveMarketRaw).replace(/%/g, "").replace(/,/g, "").trim(),
+        );
+        if (!Number.isNaN(numVal)) {
+          liveMarketCondition = numVal;
         }
-      }
-
-      // If still no numeric rating, try to extract from Performance rating text
-      if (rating === 0) {
-        let perfRating = record["Performance rating"] || "";
-        const ratingStr = String(perfRating).toLowerCase();
-        if (ratingStr.includes("low") || ratingStr === "poor") rating = 25;
-        else if (ratingStr.includes("below average")) rating = 45;
-        else if (ratingStr.includes("average") && !ratingStr.includes("above"))
-          rating = 50;
-        else if (ratingStr.includes("above average")) rating = 70;
-        else if (ratingStr.includes("high") || ratingStr.includes("excellent"))
-          rating = 90;
       }
 
       // Validation with more detailed error messages
@@ -453,7 +489,10 @@ export async function POST(request) {
       if (!currentPrice || isNaN(currentPrice) || currentPrice <= 0)
         errors.push("Invalid/missing price");
       if (age === 0 || isNaN(age)) errors.push("Invalid/missing age/mileage");
-      // Allow rating to be 0 if all other fields are valid (will use default rating band)
+      if (rating === null)
+        errors.push("Invalid/missing Auto Trader Retail Rating");
+      if (liveMarketCondition === null)
+        errors.push("Invalid/missing Live market condition");
 
       if (errors.length > 0) {
         invalidRecords.push({
@@ -483,6 +522,7 @@ export async function POST(request) {
         rating: rating,
         rating_band: rating, // numeric rating for getRatingBandFromValue to process
         at_rating: rating,
+        live_market_condition: liveMarketCondition,
         days_since_last_change: days_since_last_change,
         reference_price: reference_price,
       });

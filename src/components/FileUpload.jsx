@@ -50,8 +50,8 @@ export default function FileUpload({ onFileUpload, uploadedFile }) {
           Upload CSV File
         </h2>
         <p className="text-xs sm:text-sm text-slate-400">
-          Expected columns: stock_id, current_price, age_days, rating_band,
-          days_since_last_change, benchmark_price
+          Expected columns: Auto Trader Retail Rating, Live market condition,
+          Days in stock, Retail price, and reference valuation fields
         </p>
       </div>
 
