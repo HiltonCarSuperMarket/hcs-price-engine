@@ -323,7 +323,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 pb-12">
       <HcsBrandNavbar
-        title="Price2Go Analysis"
+        title="Price2GO Analysis"
         subtitle="HCS Pricing Hub"
         homeHref="/"
         right={
