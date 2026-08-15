@@ -135,6 +135,23 @@ export function parseMatrixCell(cell) {
   };
 }
 
+/** Live Market applies if the age-band row or AT-rating column is checked */
+export function shouldApplyLiveMarket(config, ageBand, ratingBand, cell) {
+  const ageFlags = config?.live_market_age_bands;
+  const ratingFlags = config?.live_market_rating_bands;
+  const hasBandFlags =
+    (ageFlags && typeof ageFlags === "object" && Object.keys(ageFlags).length > 0) ||
+    (ratingFlags &&
+      typeof ratingFlags === "object" &&
+      Object.keys(ratingFlags).length > 0);
+
+  if (hasBandFlags) {
+    return !!(ageFlags?.[ageBand] || ratingFlags?.[ratingBand]);
+  }
+
+  return !!parseMatrixCell(cell).applyLiveMarket;
+}
+
 export function getPriceChange(result) {
   return (result.new_price ?? 0) - (result.current_price ?? 0);
 }

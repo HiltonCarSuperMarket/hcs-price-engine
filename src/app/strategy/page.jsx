@@ -15,11 +15,30 @@ import {
 const inputClass =
   "w-full text-center text-sm sm:text-base bg-slate-950 border border-white/10 text-slate-50 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#00dbcc] focus:border-[#00dbcc] transition-all disabled:opacity-50 placeholder:text-slate-500";
 
+function bandName(band) {
+  if (band == null) return "";
+  if (typeof band === "string") return band;
+  return band.name || String(band);
+}
+
+function cellValue(cell) {
+  if (cell && typeof cell === "object" && !Array.isArray(cell)) {
+    return cell.value ?? "";
+  }
+  return cell ?? "";
+}
+
+function cellAppliesLm(cell) {
+  return !!(cell && typeof cell === "object" && cell.applyLiveMarket);
+}
+
 export default function TargetMatrixEditor() {
   const [strategyId, setStrategyId] = useState(null);
   const [ageBands, setAgeBands] = useState([]);
   const [ratingBands, setRatingBands] = useState([]);
   const [targetMatrix, setTargetMatrix] = useState({});
+  const [liveMarketAge, setLiveMarketAge] = useState({});
+  const [liveMarketRating, setLiveMarketRating] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -43,32 +62,56 @@ export default function TargetMatrixEditor() {
           ageBands: bands,
           ratingBands: ratings,
           targetMatrix: matrix,
+          liveMarketAgeBands: savedAgeFlags,
+          liveMarketRatingBands: savedRatingFlags,
         } = result.data;
 
-        setAgeBands(bands);
-        setRatingBands(ratings);
+        const ageNames = (bands || []).map(bandName);
+        const ratingNames = (ratings || []).map(bandName);
+
+        setAgeBands(ageNames);
+        setRatingBands(ratingNames);
 
         const initialMatrix = {};
-        bands.forEach((band) => {
-          initialMatrix[band] = {};
-          ratings.forEach((rating) => {
-            const ratingName = rating.name || rating;
-            const cell = matrix[band]?.[ratingName];
-            if (cell && typeof cell === "object" && !Array.isArray(cell)) {
-              initialMatrix[band][ratingName] = {
-                value: cell.value ?? "",
-                applyLiveMarket: !!cell.applyLiveMarket,
-              };
-            } else {
-              initialMatrix[band][ratingName] = {
-                value: cell ?? "",
-                applyLiveMarket: false,
-              };
-            }
+        ageNames.forEach((age) => {
+          initialMatrix[age] = {};
+          ratingNames.forEach((rating) => {
+            initialMatrix[age][rating] = cellValue(matrix[age]?.[rating]);
           });
         });
-
         setTargetMatrix(initialMatrix);
+
+        const hasSavedFlags =
+          (savedAgeFlags && Object.keys(savedAgeFlags).length > 0) ||
+          (savedRatingFlags && Object.keys(savedRatingFlags).length > 0);
+
+        if (hasSavedFlags) {
+          const ageFlags = {};
+          const ratingFlags = {};
+          ageNames.forEach((age) => {
+            ageFlags[age] = !!savedAgeFlags?.[age];
+          });
+          ratingNames.forEach((rating) => {
+            ratingFlags[rating] = !!savedRatingFlags?.[rating];
+          });
+          setLiveMarketAge(ageFlags);
+          setLiveMarketRating(ratingFlags);
+        } else {
+          const ageFlags = {};
+          const ratingFlags = {};
+          ageNames.forEach((age) => {
+            ageFlags[age] = ratingNames.every((rating) =>
+              cellAppliesLm(matrix[age]?.[rating]),
+            );
+          });
+          ratingNames.forEach((rating) => {
+            ratingFlags[rating] = ageNames.every((age) =>
+              cellAppliesLm(matrix[age]?.[rating]),
+            );
+          });
+          setLiveMarketAge(ageFlags);
+          setLiveMarketRating(ratingFlags);
+        }
       } catch (err) {
         console.error("Error fetching target matrix:", err);
         toastUtils.error(err.message || "Failed to load data");
@@ -85,25 +128,17 @@ export default function TargetMatrixEditor() {
       ...prev,
       [ageBand]: {
         ...prev[ageBand],
-        [ratingBand]: {
-          ...prev[ageBand]?.[ratingBand],
-          value,
-        },
+        [ratingBand]: value,
       },
     }));
   };
 
-  const handleLiveMarketToggle = (ageBand, ratingBand, checked) => {
-    setTargetMatrix((prev) => ({
-      ...prev,
-      [ageBand]: {
-        ...prev[ageBand],
-        [ratingBand]: {
-          ...prev[ageBand]?.[ratingBand],
-          applyLiveMarket: checked,
-        },
-      },
-    }));
+  const toggleAgeLiveMarket = (ageBand, checked) => {
+    setLiveMarketAge((prev) => ({ ...prev, [ageBand]: checked }));
+  };
+
+  const toggleRatingLiveMarket = (ratingBand, checked) => {
+    setLiveMarketRating((prev) => ({ ...prev, [ratingBand]: checked }));
   };
 
   const handleSave = async () => {
@@ -112,10 +147,9 @@ export default function TargetMatrixEditor() {
 
       const hasEmptyValues = Object.entries(targetMatrix).some(
         ([_, ratingData]) =>
-          Object.values(ratingData).some((cell) => {
-            const val = cell?.value;
-            return val === null || val === undefined || val === "";
-          }),
+          Object.values(ratingData).some(
+            (val) => val === null || val === undefined || val === "",
+          ),
       );
 
       if (hasEmptyValues) {
@@ -126,9 +160,7 @@ export default function TargetMatrixEditor() {
 
       const hasInvalidValues = Object.entries(targetMatrix).some(
         ([_, ratingData]) =>
-          Object.values(ratingData).some((cell) =>
-            isNaN(parseFloat(cell?.value)),
-          ),
+          Object.values(ratingData).some((val) => isNaN(parseFloat(val))),
       );
 
       if (hasInvalidValues) {
@@ -140,11 +172,8 @@ export default function TargetMatrixEditor() {
       const matrixToSave = {};
       Object.entries(targetMatrix).forEach(([ageBand, ratingData]) => {
         matrixToSave[ageBand] = {};
-        Object.entries(ratingData).forEach(([ratingBand, cell]) => {
-          matrixToSave[ageBand][ratingBand] = {
-            value: parseFloat(cell.value),
-            applyLiveMarket: !!cell.applyLiveMarket,
-          };
+        Object.entries(ratingData).forEach(([ratingBand, value]) => {
+          matrixToSave[ageBand][ratingBand] = parseFloat(value);
         });
       });
 
@@ -158,6 +187,8 @@ export default function TargetMatrixEditor() {
         body: JSON.stringify({
           strategyId,
           targetMatrix: matrixToSave,
+          liveMarketAgeBands: liveMarketAge,
+          liveMarketRatingBands: liveMarketRating,
         }),
       });
 
@@ -226,7 +257,8 @@ export default function TargetMatrixEditor() {
           </h2>
           <p className="text-sm sm:text-base text-slate-400">
             Configure target values for each age band and rating band combination.
-            Check Live Market on a cell to add Live Market impact to that value.
+            Tick Live Market on an age row or an AT Rating column to apply Live
+            Market impact to that whole band.
           </p>
         </div>
 
@@ -238,12 +270,26 @@ export default function TargetMatrixEditor() {
                   <th className="px-3 sm:px-4 py-3 text-left font-semibold text-sm sm:text-base border-r border-white/10 sticky left-0 bg-slate-950 z-0 text-[#00dbcc]">
                     Age Band
                   </th>
-                  {ratingBands.map((band) => (
+                  {ratingBands.map((rating) => (
                     <th
-                      key={band.name || band}
+                      key={rating}
                       className="px-3 sm:px-4 py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/10 last:border-r-0 whitespace-nowrap text-[#00dbcc]"
                     >
-                      {band.name || band}
+                      <div className="flex flex-col items-center gap-1.5">
+                        <span>{rating}</span>
+                        <label className="flex items-center justify-center gap-1 text-[10px] font-medium text-slate-400 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={!!liveMarketRating[rating]}
+                            onChange={(e) =>
+                              toggleRatingLiveMarket(rating, e.target.checked)
+                            }
+                            disabled={saving}
+                            className="h-3.5 w-3.5 rounded border-white/20 bg-slate-950 text-[#00dbcc] focus:ring-[#00dbcc] focus:ring-offset-0"
+                          />
+                          LM
+                        </label>
+                      </div>
                     </th>
                   ))}
                 </tr>
@@ -259,24 +305,35 @@ export default function TargetMatrixEditor() {
                     }`}
                   >
                     <td className="px-3 sm:px-4 py-3 font-semibold text-sm sm:text-base border-r border-white/10 sticky left-0 bg-inherit z-0 text-slate-50 shadow-[2px_0_4px_rgba(0,0,0,0.3)]">
-                      {ageBand}
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={!!liveMarketAge[ageBand]}
+                          onChange={(e) =>
+                            toggleAgeLiveMarket(ageBand, e.target.checked)
+                          }
+                          disabled={saving}
+                          className="h-3.5 w-3.5 rounded border-white/20 bg-slate-950 text-[#00dbcc] focus:ring-[#00dbcc] focus:ring-offset-0"
+                        />
+                        <span>{ageBand}</span>
+                      </label>
                     </td>
-                    {ratingBands.map((ratingBand) => {
-                      const ratingName = ratingBand.name || ratingBand;
-                      const cell = targetMatrix[ageBand]?.[ratingName] || {
-                        value: "",
-                        applyLiveMarket: false,
-                      };
-                      const value = cell.value ?? "";
+                    {ratingBands.map((ratingName) => {
+                      const value = targetMatrix[ageBand]?.[ratingName] ?? "";
                       const isEmpty =
                         value === null || value === undefined || value === "";
+                      const lmOn =
+                        !!liveMarketAge[ageBand] ||
+                        !!liveMarketRating[ratingName];
 
                       return (
                         <td
                           key={`${ageBand}-${ratingName}`}
-                          className="px-2 sm:px-3 py-3 border-r border-white/5 last:border-r-0"
+                          className={`px-2 sm:px-3 py-3 border-r border-white/5 last:border-r-0 ${
+                            lmOn ? "bg-[#00dbcc]/5" : ""
+                          }`}
                         >
-                          <div className="space-y-1.5">
+                          <div className="space-y-1">
                             <input
                               type="number"
                               step="0.01"
@@ -292,26 +349,12 @@ export default function TargetMatrixEditor() {
                               className={`${inputClass} ${
                                 isEmpty
                                   ? "border-amber-500/50 bg-amber-950/20 focus:border-amber-400 focus:ring-amber-400/30"
-                                  : ""
+                                  : lmOn
+                                    ? "border-[#00dbcc]/40"
+                                    : ""
                               }`}
                               disabled={saving}
                             />
-                            <label className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={!!cell.applyLiveMarket}
-                                onChange={(e) =>
-                                  handleLiveMarketToggle(
-                                    ageBand,
-                                    ratingName,
-                                    e.target.checked,
-                                  )
-                                }
-                                disabled={saving}
-                                className="h-3.5 w-3.5 rounded border-white/20 bg-slate-950 text-[#00dbcc] focus:ring-[#00dbcc] focus:ring-offset-0"
-                              />
-                              Live Market
-                            </label>
                             {isEmpty && (
                               <p className="text-xs text-amber-400 font-medium text-center">
                                 Required
@@ -380,8 +423,8 @@ export default function TargetMatrixEditor() {
             </li>
             <li className="flex items-start gap-2 sm:col-span-2">
               <span className="w-1.5 h-1.5 bg-[#00dbcc] rounded-full mt-1.5 flex-shrink-0" />
-              Tick Live Market on a cell to add Live Market impact to that
-              matrix percentage. Unticked cells use the value as-is.
+              Tick LM on an age row or an AT Rating column. A cell gets Live
+              Market impact if its row or its column is ticked.
             </li>
           </ul>
         </div>

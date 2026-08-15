@@ -14,6 +14,7 @@ import {
   parseMatrixCell,
   resolveLiveMarketImpact,
   sanitizeLiveMarketBands,
+  shouldApplyLiveMarket,
 } from "@/lib/processingUtils";
 
 // Pricing Engine Logic (ported from Python)
@@ -147,7 +148,12 @@ class PricingEngine {
     let liveMarketImpact = 0;
     let liveMarketBand = "";
 
-    if (matrixCell.applyLiveMarket) {
+    if (shouldApplyLiveMarket(
+      this.config,
+      ageBand,
+      ratingBand,
+      this.config.target_matrix[ageBand][ratingBand],
+    )) {
       if (
         stock.live_market_condition == null ||
         Number.isNaN(stock.live_market_condition)

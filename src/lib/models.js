@@ -20,6 +20,8 @@ const StrategySchema = new mongoose.Schema(
     age_bands: mongoose.Schema.Types.Mixed,
     rating_bands: mongoose.Schema.Types.Mixed,
     live_market_bands: mongoose.Schema.Types.Mixed,
+    live_market_age_bands: mongoose.Schema.Types.Mixed,
+    live_market_rating_bands: mongoose.Schema.Types.Mixed,
     target_matrix: mongoose.Schema.Types.Mixed,
     isActive: {
       type: Boolean,
