@@ -30,6 +30,8 @@ export async function GET(request) {
     const ageBands = strategy.age_bands || [];
     const ratingBands = strategy.rating_bands || [];
     const targetMatrix = strategy.target_matrix || {};
+    const liveMarketAgeBands = strategy.live_market_age_bands || {};
+    const liveMarketRatingBands = strategy.live_market_rating_bands || {};
 
     return new Response(
       JSON.stringify({
@@ -38,6 +40,8 @@ export async function GET(request) {
           ageBands,
           ratingBands,
           targetMatrix,
+          liveMarketAgeBands,
+          liveMarketRatingBands,
         },
       }),
       {
@@ -64,7 +68,8 @@ export async function POST(request) {
   try {
     await connectDB();
     const body = await request.json();
-    const { strategyId, targetMatrix } = body;
+    const { strategyId, targetMatrix, liveMarketAgeBands, liveMarketRatingBands } =
+      body;
 
     if (!strategyId || !targetMatrix) {
       return new Response(
@@ -118,9 +123,13 @@ export async function POST(request) {
 
     // Update strategy with new target_matrix
     const updatedStrategy = await Strategy.findOneAndUpdate(
-      { name: "Default Strategy" }, // filter
-      { target_matrix: targetMatrix }, // update
-      { new: true }, // return updated doc
+      { name: "Default Strategy" },
+      {
+        target_matrix: targetMatrix,
+        live_market_age_bands: liveMarketAgeBands || {},
+        live_market_rating_bands: liveMarketRatingBands || {},
+      },
+      { new: true },
     );
 
     return new Response(

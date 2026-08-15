@@ -7,13 +7,6 @@ function getCellValue(cell) {
   return cell ?? "";
 }
 
-function getCellApplyLiveMarket(cell) {
-  if (cell && typeof cell === "object" && !Array.isArray(cell)) {
-    return !!cell.applyLiveMarket;
-  }
-  return false;
-}
-
 export default function TargetMatrixEditor({
   matrix,
   ageBands,
@@ -25,22 +18,7 @@ export default function TargetMatrixEditor({
     if (!newMatrix[ageBand]) {
       newMatrix[ageBand] = {};
     }
-    newMatrix[ageBand][ratingBand] = {
-      value: parseFloat(value) || 0,
-      applyLiveMarket: getCellApplyLiveMarket(matrix[ageBand]?.[ratingBand]),
-    };
-    onChange(newMatrix);
-  };
-
-  const handleLiveMarketToggle = (ageBand, ratingBand, checked) => {
-    const newMatrix = { ...matrix };
-    if (!newMatrix[ageBand]) {
-      newMatrix[ageBand] = {};
-    }
-    newMatrix[ageBand][ratingBand] = {
-      value: parseFloat(getCellValue(matrix[ageBand]?.[ratingBand])) || 0,
-      applyLiveMarket: checked,
-    };
+    newMatrix[ageBand][ratingBand] = parseFloat(value) || 0;
     onChange(newMatrix);
   };
 
@@ -52,7 +30,8 @@ export default function TargetMatrixEditor({
         </h3>
         <p className="text-sm text-neutral-600 mb-4">
           Define target prices (as percentages) for each combination of age and
-          rating bands. Tick Live Market to add Live Market impact to that cell.
+          rating bands. Live Market is set per age row and AT Rating column on
+          the Strategy page.
         </p>
       </div>
 
@@ -84,54 +63,26 @@ export default function TargetMatrixEditor({
                     key={`${ageBand}-${ratingBand.name}`}
                     className="border border-neutral-300 px-4 py-3"
                   >
-                    <div className="space-y-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={getCellValue(matrix[ageBand]?.[ratingBand.name])}
-                        onChange={(e) =>
-                          handleCellChange(
-                            ageBand,
-                            ratingBand.name,
-                            e.target.value,
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="0.00"
-                      />
-                      <label className="flex items-center justify-center gap-1.5 text-xs text-neutral-600 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={getCellApplyLiveMarket(
-                            matrix[ageBand]?.[ratingBand.name],
-                          )}
-                          onChange={(e) =>
-                            handleLiveMarketToggle(
-                              ageBand,
-                              ratingBand.name,
-                              e.target.checked,
-                            )
-                          }
-                          className="h-3.5 w-3.5"
-                        />
-                        Live Market
-                      </label>
-                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={getCellValue(matrix[ageBand]?.[ratingBand.name])}
+                      onChange={(e) =>
+                        handleCellChange(
+                          ageBand,
+                          ratingBand.name,
+                          e.target.value,
+                        )
+                      }
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                    />
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-
-      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-        <p className="text-sm text-blue-800">
-          Enter the target price percentage for each age/rating combination. For
-          example, 97.78 means the target price should be 97.78% of the
-          reference price. Tick Live Market to add Live Market impact to that
-          cell.
-        </p>
       </div>
     </div>
   );
