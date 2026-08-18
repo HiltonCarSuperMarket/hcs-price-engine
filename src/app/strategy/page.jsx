@@ -1,5 +1,7 @@
 "use client";
 
+export { default } from "./page_new";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutDashboard, Settings as SettingsIcon } from "lucide-react";
@@ -32,7 +34,7 @@ function cellAppliesLm(cell) {
   return !!(cell && typeof cell === "object" && cell.applyLiveMarket);
 }
 
-export default function TargetMatrixEditor() {
+function TargetMatrixEditor() {
   const [strategyId, setStrategyId] = useState(null);
   const [ageBands, setAgeBands] = useState([]);
   const [ratingBands, setRatingBands] = useState([]);

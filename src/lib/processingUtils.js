@@ -110,46 +110,94 @@ export function sanitizeLiveMarketBands(bands = []) {
   });
 }
 
-/** Read a matrix cell that may be a number (legacy) or { value, applyLiveMarket } */
+/**
+ * Parse a matrix cell into the new format:
+ * - value: main percentage (number)
+ * - plusEnabled: boolean (+LM sign)
+ * - minusEnabled: boolean (-LM sign)
+ * - plusImpacts: { [liveMarketBandName]: impactNumber }  (PPT)
+ * - minusImpacts: { [liveMarketBandName]: impactNumber } (PPT)
+ *
+ * Also supports legacy formats:
+ * - number => main=value, both signs disabled
+ * - { value, applyLiveMarket:true } => both signs enabled, impacts default to 0
+ */
 export function parseMatrixCell(cell) {
-  if (cell == null || cell === "") {
-    return { value: null, applyLiveMarket: false };
-  }
+  const emptyImpacts = {};
 
-  if (typeof cell === "object" && !Array.isArray(cell)) {
-    const raw = cell.value;
-    const value =
-      raw === null || raw === undefined || raw === ""
-        ? null
-        : Number(raw);
+  const asNumberOrNull = (v) => {
+    if (v === null || v === undefined || v === "") return null;
+    const n = Number(v);
+    return Number.isNaN(n) ? null : n;
+  };
+
+  if (cell == null || cell === "") {
     return {
-      value: value != null && !Number.isNaN(value) ? value : null,
-      applyLiveMarket: !!cell.applyLiveMarket,
+      value: null,
+      plusEnabled: false,
+      minusEnabled: false,
+      plusImpacts: emptyImpacts,
+      minusImpacts: emptyImpacts,
     };
   }
 
-  const value = Number(cell);
+  if (typeof cell === "object" && !Array.isArray(cell)) {
+    const mainValue =
+      cell.value ?? cell.mainPercent ?? cell.main ?? cell.target_percent;
+    const value = asNumberOrNull(mainValue);
+
+    const legacyApply = !!cell.applyLiveMarket;
+    const plusEnabled = legacyApply ? true : !!cell.plusEnabled;
+    const minusEnabled = legacyApply ? true : !!cell.minusEnabled;
+
+    return {
+      value,
+      plusEnabled,
+      minusEnabled,
+      plusImpacts: cell.plusImpacts && typeof cell.plusImpacts === "object"
+        ? cell.plusImpacts
+        : emptyImpacts,
+      minusImpacts: cell.minusImpacts && typeof cell.minusImpacts === "object"
+        ? cell.minusImpacts
+        : emptyImpacts,
+    };
+  }
+
+  const value = asNumberOrNull(cell);
   return {
-    value: Number.isNaN(value) ? null : value,
-    applyLiveMarket: false,
+    value,
+    plusEnabled: false,
+    minusEnabled: false,
+    plusImpacts: emptyImpacts,
+    minusImpacts: emptyImpacts,
   };
 }
 
-/** Live Market applies if the age-band row or AT-rating column is checked */
-export function shouldApplyLiveMarket(config, ageBand, ratingBand, cell) {
-  const ageFlags = config?.live_market_age_bands;
-  const ratingFlags = config?.live_market_rating_bands;
-  const hasBandFlags =
-    (ageFlags && typeof ageFlags === "object" && Object.keys(ageFlags).length > 0) ||
-    (ratingFlags &&
-      typeof ratingFlags === "object" &&
-      Object.keys(ratingFlags).length > 0);
+/**
+ * Resolve the Live Market band name for a numeric condition value.
+ * Throws if no band matches.
+ */
+export function resolveLiveMarketBandName(liveMarketValue, bands = []) {
+  const value = Number(
+    String(liveMarketValue ?? "")
+      .replace(/%/g, "")
+      .replace(/,/g, "")
+      .trim(),
+  );
 
-  if (hasBandFlags) {
-    return !!(ageFlags?.[ageBand] || ratingFlags?.[ratingBand]);
+  if (Number.isNaN(value)) {
+    throw new Error(`Invalid live market condition '${liveMarketValue}'`);
   }
 
-  return !!parseMatrixCell(cell).applyLiveMarket;
+  for (const band of bands) {
+    const { min: bMin, max: bMax } = getLiveMarketBandRange(band);
+    if (value >= bMin && value <= bMax) return band.name;
+  }
+
+  const ranges = (bands || []).map(formatLiveMarketRange).join("; ");
+  throw new Error(
+    `Live market condition '${value}' not found in live market bands (${ranges || "none configured"})`,
+  );
 }
 
 export function getPriceChange(result) {

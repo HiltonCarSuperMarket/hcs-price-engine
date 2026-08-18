@@ -12,9 +12,8 @@ import {
   filterBlockedResults,
   filterResultsForExport,
   parseMatrixCell,
-  resolveLiveMarketImpact,
+  resolveLiveMarketBandName,
   sanitizeLiveMarketBands,
-  shouldApplyLiveMarket,
 } from "@/lib/processingUtils";
 
 // Pricing Engine Logic (ported from Python)
@@ -95,13 +94,6 @@ class PricingEngine {
     return "78+"; // Default to highest band if can't parse
   }
 
-  getLiveMarketImpact(liveMarketValue) {
-    return resolveLiveMarketImpact(
-      liveMarketValue,
-      this.config.live_market_bands || [],
-    );
-  }
-
   calculateTarget(stock) {
     const refCol = this.config.reference_column;
     let refVal;
@@ -148,21 +140,33 @@ class PricingEngine {
     let liveMarketImpact = 0;
     let liveMarketBand = "";
 
-    if (shouldApplyLiveMarket(
-      this.config,
-      ageBand,
-      ratingBand,
-      this.config.target_matrix[ageBand][ratingBand],
-    )) {
-      if (
-        stock.live_market_condition == null ||
-        Number.isNaN(stock.live_market_condition)
-      ) {
-        throw new Error("Invalid/missing Live market condition");
+    if (stock.live_market_condition == null) {
+      throw new Error("Invalid/missing Live market condition");
+    }
+
+    const liveMarketConditionNum = Number(stock.live_market_condition);
+    if (Number.isNaN(liveMarketConditionNum)) {
+      throw new Error("Invalid/missing Live market condition");
+    }
+
+    // Resolve which LM band the condition falls into (based on min/max from /settings)
+    liveMarketBand = resolveLiveMarketBandName(
+      liveMarketConditionNum,
+      this.config.live_market_bands || [],
+    );
+
+    // Sign split: >= 0 is positive, < 0 is negative (per your earlier requirement)
+    const isPositive = liveMarketConditionNum >= 0;
+    if (isPositive) {
+      if (matrixCell.plusEnabled) {
+        const impact = matrixCell.plusImpacts?.[liveMarketBand];
+        liveMarketImpact = Number(impact) || 0;
       }
-      const liveMarket = this.getLiveMarketImpact(stock.live_market_condition);
-      liveMarketImpact = liveMarket.impact;
-      liveMarketBand = liveMarket.bandName;
+    } else {
+      if (matrixCell.minusEnabled) {
+        const impact = matrixCell.minusImpacts?.[liveMarketBand];
+        liveMarketImpact = Number(impact) || 0;
+      }
     }
 
     const targetPercent = matrixPercent + liveMarketImpact;
@@ -485,22 +489,25 @@ export async function POST(request) {
       }
 
       // Live market condition — exact column only, strip trailing %
-      const liveMarketRaw = record["Live market condition"]; 
-      console.log("Raw", liveMarketRaw); 
-      let liveMarketCondition = null; 
-      if (liveMarketRaw !== undefined && liveMarketRaw !== null) { 
-        const raw = String(liveMarketRaw).trim(); 
-        console.log(raw);
-          if ( raw !== "" && raw.toLowerCase() !== "nan" && raw.toLowerCase() !== "none" ) 
-            { const cleaned = raw
-              .replace(/%/g, "")
-              .replace(/,/g, "")
-              .replace(/\s+/g, "")   // remove ALL whitespace, including between sign and digits
-              .trim(); 
-              const numVal = Number(cleaned); 
-              if (Number.isFinite(numVal)) 
-                { liveMarketCondition = numVal; } } } 
-              console.log("Condition", liveMarketCondition);
+      const liveMarketRaw = record["Live market condition"];
+      let liveMarketCondition = null;
+      if (liveMarketRaw !== undefined && liveMarketRaw !== null) {
+        const raw = String(liveMarketRaw).trim();
+        if (
+          raw !== "" &&
+          raw.toLowerCase() !== "nan" &&
+          raw.toLowerCase() !== "none"
+        ) {
+          const cleaned = raw
+            .replace(/%/g, "")
+            .replace(/,/g, "")
+            .replace(/\s+/g, "") // remove ALL whitespace, including sign/digits
+            .trim();
+
+          const numVal = Number(cleaned);
+          if (Number.isFinite(numVal)) liveMarketCondition = numVal;
+        }
+      }
 
       // Validation with more detailed error messages
       const errors = [];
@@ -576,8 +583,6 @@ export async function POST(request) {
         typeof item.reason === "string" && item.reason.startsWith("Data Error"),
     ).length;
 
-    console.log("Data Error count:", count);
-
     const exportResults = filterResultsForExport(results, processOptions);
     const blockedResults = filterBlockedResults(results);
     const csv = buildCsvFromResults(exportResults);
@@ -605,4 +610,3 @@ export async function POST(request) {
     );
   }
 }
-2;
