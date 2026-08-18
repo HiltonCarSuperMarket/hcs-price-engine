@@ -885,20 +885,10 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <label className={labelClassSm}>Impact (PPT)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={band.impact ?? 0}
-                      onChange={(e) =>
-                        updateLiveMarketBand(
-                          idx,
-                          "impact",
-                          parseFloat(e.target.value) || 0,
-                        )
-                      }
-                      className={inputClassSm}
-                    />
+                    <label className={labelClassSm}>Impact</label>
+                    <div className="text-[12px] text-slate-400 pt-[9px]">
+                      Set per-cell in <span className="text-slate-200">Strategy</span>.
+                    </div>
                   </div>
 
                   <button

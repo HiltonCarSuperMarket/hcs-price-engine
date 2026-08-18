@@ -30,8 +30,14 @@ export async function GET(request) {
     const ageBands = strategy.age_bands || [];
     const ratingBands = strategy.rating_bands || [];
     const targetMatrix = strategy.target_matrix || {};
-    const liveMarketAgeBands = strategy.live_market_age_bands || {};
-    const liveMarketRatingBands = strategy.live_market_rating_bands || {};
+    const liveMarketBandsRaw = Array.isArray(strategy.live_market_bands)
+      ? strategy.live_market_bands
+      : [];
+    const liveMarketBands = liveMarketBandsRaw.map((b) => ({
+      name: b.name,
+      min: b.min,
+      max: b.max,
+    }));
 
     return new Response(
       JSON.stringify({
@@ -40,8 +46,7 @@ export async function GET(request) {
           ageBands,
           ratingBands,
           targetMatrix,
-          liveMarketAgeBands,
-          liveMarketRatingBands,
+          liveMarketBands,
         },
       }),
       {
@@ -68,8 +73,7 @@ export async function POST(request) {
   try {
     await connectDB();
     const body = await request.json();
-    const { strategyId, targetMatrix, liveMarketAgeBands, liveMarketRatingBands } =
-      body;
+    const { strategyId, targetMatrix } = body;
 
     if (!strategyId || !targetMatrix) {
       return new Response(
@@ -89,7 +93,7 @@ export async function POST(request) {
       for (const [ratingBand, cell] of Object.entries(ratingData)) {
         const rawValue =
           cell && typeof cell === "object" && !Array.isArray(cell)
-            ? cell.value
+            ? cell.value ?? cell.mainPercent ?? cell.main
             : cell;
 
         if (rawValue === null || rawValue === undefined || rawValue === "") {
@@ -126,8 +130,6 @@ export async function POST(request) {
       { name: "Default Strategy" },
       {
         target_matrix: targetMatrix,
-        live_market_age_bands: liveMarketAgeBands || {},
-        live_market_rating_bands: liveMarketRatingBands || {},
       },
       { new: true },
     );
