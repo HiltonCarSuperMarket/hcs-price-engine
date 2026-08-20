@@ -3,6 +3,7 @@ import connectDB from "@/lib/mongodb";
 import { Configuration } from "@/lib/models";
 import { parseRoundingDigits, roundToEndingDigits } from "@/lib/roundingUtils";
 import { defaultConfig } from "@/lib/defaultConfig";
+import { requireAuth } from "@/lib/require-auth";
 import {
   applyDirectionFilter,
   applyLowerThreshold,
@@ -356,6 +357,9 @@ function parseFloat_safe(val) {
 
 export async function POST(request) {
   try {
+    const { error } = await requireAuth(request);
+    if (error) return error;
+
     await connectDB();
 
     const formData = await request.formData();

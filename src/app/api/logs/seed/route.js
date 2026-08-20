@@ -1,12 +1,16 @@
 import connectDB from "@/lib/mongodb";
 import { ProcessLogRecord } from "@/lib/models";
+import { requireAdmin } from "@/lib/require-auth";
 
 /**
  * Legacy seed endpoint — no longer seeds summary-only history.
  * New dashboard uses ProcessLogRecord data from Save Log only.
  */
-export async function POST() {
+export async function POST(request) {
   try {
+    const { error } = await requireAdmin(request);
+    if (error) return error;
+
     await connectDB();
     const total = await ProcessLogRecord.countDocuments();
     return Response.json({

@@ -2,17 +2,10 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
-import { HcsBrandNavbar } from "@/components/hcs-brand-navbar";
 
 export function PageSkeleton() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
-      <HcsBrandNavbar
-        title="Price2GO"
-        subtitle="HCS Pricing Hub"
-        homeHref="/"
-        right={<Skeleton className="h-9 w-40 rounded-lg bg-white/20" />}
-      />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="space-y-8">
           <div className="space-y-3">

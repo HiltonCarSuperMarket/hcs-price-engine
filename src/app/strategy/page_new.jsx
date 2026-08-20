@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { LayoutDashboard, Settings as SettingsIcon } from "lucide-react";
 import { toastUtils } from "@/lib/utils";
 import { TableSkeleton } from "@/components/SkeletonLoader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,11 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  HcsBrandNavbar,
-  navActionClass,
-  navActionPrimaryClass,
-} from "@/components/hcs-brand-navbar";
 
 const inputClass =
   "w-full text-center text-sm sm:text-base bg-slate-950 border border-white/10 text-slate-50 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#00dbcc] focus:border-[#00dbcc] transition-all disabled:opacity-50 placeholder:text-slate-500";
@@ -205,12 +198,6 @@ export default function TargetMatrixEditor() {
   if (loading) {
     return (
       <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-        <HcsBrandNavbar
-          title="Strategy Configuration"
-          subtitle="HCS Pricing Hub"
-          homeHref="/"
-          right={<Skeleton className="h-9 w-40 rounded-lg bg-white/20" />}
-        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8 space-y-3">
             <Skeleton className="h-10 w-64 bg-slate-800" />
@@ -224,25 +211,6 @@ export default function TargetMatrixEditor() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-      <HcsBrandNavbar
-        title="Strategy Configuration"
-        subtitle="HCS Pricing Hub"
-        homeHref="/"
-        right={
-          <>
-            <Link href="/dashboard" className={navActionPrimaryClass}>
-              <LayoutDashboard className="h-4 w-4" />
-              <span>Dashboard</span>
-            </Link>
-            <Link href="/settings" className={navActionClass}>
-              <SettingsIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Configuration</span>
-              <span className="sm:hidden">Config</span>
-            </Link>
-          </>
-        }
-      />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="mb-6 sm:mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-50 mb-2">

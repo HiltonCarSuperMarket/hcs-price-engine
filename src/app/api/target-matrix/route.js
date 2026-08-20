@@ -1,8 +1,12 @@
 import connectDB from "@/lib/mongodb";
 import { Strategy } from "@/lib/models";
+import { requireAdmin } from "@/lib/require-auth";
 
 export async function GET(request) {
   try {
+    const { error } = await requireAdmin(request);
+    if (error) return error;
+
     await connectDB();
 
     const { searchParams } = new URL(request.url);
@@ -71,6 +75,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const { error } = await requireAdmin(request);
+    if (error) return error;
+
     await connectDB();
     const body = await request.json();
     const { strategyId, targetMatrix } = body;

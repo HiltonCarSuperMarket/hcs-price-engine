@@ -1,16 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Play, Settings as SettingsIcon } from "lucide-react";
+import { Play } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
 import ProcessingResults from "@/components/ProcessingResults";
 import ProcessOptionsModal from "@/components/ProcessOptionsModal";
-import {
-  HcsBrandNavbar,
-  navActionClass,
-  navActionPrimaryClass,
-} from "@/components/hcs-brand-navbar";
 import { toastUtils } from "@/lib/utils";
 import { PageSkeleton } from "@/components/SkeletonLoader";
 
@@ -155,25 +149,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-      <HcsBrandNavbar
-        title="Price2GO"
-        subtitle="HCS Pricing Hub"
-        homeHref="/"
-        right={
-          <>
-            <Link href="/dashboard" className={navActionPrimaryClass}>
-              <span>Dashboard</span>
-            </Link>
-            <Link href="/settings" className={navActionClass}>
-              <SettingsIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Configuration</span>
-              <span className="sm:hidden">Config</span>
-            </Link>
-          </>
-        }
-      />
-
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {!results ? (
           <div className="space-y-6 sm:space-y-8">

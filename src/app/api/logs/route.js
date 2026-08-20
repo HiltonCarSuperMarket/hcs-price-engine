@@ -6,9 +6,13 @@ import {
   formatDateStr,
   toDateIso,
 } from "@/lib/logUtils";
+import { requireAuth } from "@/lib/require-auth";
 
 export async function GET(request) {
   try {
+    const { error } = await requireAuth(request);
+    if (error) return error;
+
     await connectDB();
 
     const { searchParams } = new URL(request.url);
@@ -78,6 +82,9 @@ export async function GET(request) {
 
 export async function DELETE(request) {
   try {
+    const { error } = await requireAuth(request);
+    if (error) return error;
+
     await connectDB();
 
     const { searchParams } = new URL(request.url);
@@ -116,6 +123,9 @@ export async function DELETE(request) {
 
 export async function POST(request) {
   try {
+    const { error } = await requireAuth(request);
+    if (error) return error;
+
     await connectDB();
 
     const body = await request.json();
