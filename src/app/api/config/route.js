@@ -1,9 +1,13 @@
 import { defaultConfig } from "@/lib/defaultConfig";
 import connectDB from "@/lib/mongodb";
 import { Strategy, Configuration } from "@/lib/models";
+import { requireAuth, requireAdmin } from "@/lib/require-auth";
 
 export async function GET(request) {
   try {
+    const { error } = await requireAuth(request);
+    if (error) return error;
+
     await connectDB();
 
     const { searchParams } = new URL(request.url);
@@ -183,6 +187,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const { error } = await requireAdmin(request);
+    if (error) return error;
+
     await connectDB();
     const body = await request.json();
     const { action, config, id, configData } = body;

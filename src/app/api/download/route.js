@@ -1,5 +1,10 @@
+import { requireAuth } from "@/lib/require-auth";
+
 export async function POST(request) {
   try {
+    const { error } = await requireAuth(request);
+    if (error) return error;
+
     const csv = await request.json();
 
     return new Response(csv, {

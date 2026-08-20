@@ -1,20 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import Link from "next/link";
 import {
   Download,
   TrendingUp,
   TrendingDown,
   ArrowLeftRight,
-  Settings as SettingsIcon,
   Trash2,
 } from "lucide-react";
-import {
-  HcsBrandNavbar,
-  navActionClass,
-  navActionPrimaryClass,
-} from "@/components/hcs-brand-navbar";
 import {
   Select,
   SelectContent,
@@ -322,24 +315,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-      <HcsBrandNavbar
-        title="Price2GO Analysis"
-        subtitle="HCS Pricing Hub"
-        homeHref="/"
-        right={
-          <>
-            <Link href="/" className={navActionPrimaryClass}>
-              <span>Processor</span>
-            </Link>
-            <Link href="/settings" className={navActionClass}>
-              <SettingsIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Configuration</span>
-              <span className="sm:hidden">Config</span>
-            </Link>
-          </>
-        }
-      />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* Filters */}
         <div className="bg-slate-800 border border-white/5 rounded-2xl p-5 flex flex-wrap justify-between items-center gap-4">

@@ -1,20 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, Plus, X, Save, LayoutDashboard } from "lucide-react";
+import { ChevronDown, Plus, X, Save } from "lucide-react";
 import Link from "next/link";
 import { toastUtils } from "@/lib/utils";
 import { ConfigSkeleton } from "@/components/SkeletonLoader";
-import { Skeleton } from "@/components/ui/skeleton";
 import RoundingDigitsPicker from "@/components/RoundingDigitsPicker";
 import { parseRoundingDigits } from "@/lib/roundingUtils";
 import { defaultConfig } from "@/lib/defaultConfig";
 import { sanitizeLiveMarketBands } from "@/lib/processingUtils";
-import {
-  HcsBrandNavbar,
-  navActionClass,
-  navActionPrimaryClass,
-} from "@/components/hcs-brand-navbar";
 
 const inputClass =
   "w-full px-4 py-2.5 bg-slate-950 border border-white/10 text-slate-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00dbcc] focus:border-[#00dbcc] transition-all text-sm sm:text-base placeholder:text-slate-500";
@@ -330,12 +324,6 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-        <HcsBrandNavbar
-          title="Configuration"
-          subtitle="HCS Pricing Hub"
-          homeHref="/"
-          right={<Skeleton className="h-9 w-40 rounded-lg bg-white/20" />}
-        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <ConfigSkeleton />
         </div>
@@ -357,24 +345,6 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-      <HcsBrandNavbar
-        title="Configuration"
-        subtitle="HCS Pricing Hub"
-        homeHref="/"
-        right={
-          <>
-            <Link href="/dashboard" className={navActionPrimaryClass}>
-              <LayoutDashboard className="h-4 w-4" />
-              <span>Dashboard</span>
-            </Link>
-            <Link href="/strategy" className={navActionClass}>
-              <span className="hidden sm:inline">Strategy Configuration</span>
-              <span className="sm:hidden">Strategy</span>
-            </Link>
-          </>
-        }
-      />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Global Configuration Section */}
         <div className={sectionClass}>

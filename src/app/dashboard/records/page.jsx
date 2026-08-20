@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Download, LayoutDashboard } from "lucide-react";
-import {
-  HcsBrandNavbar,
-  navActionClass,
-  navActionPrimaryClass,
-} from "@/components/hcs-brand-navbar";
+import { Download } from "lucide-react";
 import { formatCurrency } from "@/lib/logUtils";
 import { toastUtils } from "@/lib/utils";
 
@@ -178,23 +172,6 @@ function RecordsContent() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 pb-12">
-      <HcsBrandNavbar
-        title="Log Records"
-        subtitle="HCS Pricing Hub"
-        homeHref="/"
-        right={
-          <>
-            <Link href="/dashboard" className={navActionPrimaryClass}>
-              <LayoutDashboard className="h-4 w-4" />
-              <span>Dashboard</span>
-            </Link>
-            <Link href="/" className={navActionClass}>
-              <span>Processor</span>
-            </Link>
-          </>
-        }
-      />
-
       <div className="max-w-[95vw] mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
