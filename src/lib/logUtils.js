@@ -180,6 +180,68 @@ export function deriveDailySummariesFromRecords(records = []) {
     .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
 }
 
+/**
+ * Map a legacy DailySummaryLog document to the current dashboard summary shape.
+ * Extra old-only fields (e.g. noChange) are intentionally omitted.
+ */
+export function normalizeLegacySummary(row) {
+  if (!row) return null;
+
+  const dateIso = row.dateIso;
+  if (!dateIso) return null;
+
+  const increase = Number(row.increase) || 0;
+  const drop = Number(row.drop) || 0;
+  const net =
+    row.net != null && row.net !== ""
+      ? Number(row.net) || 0
+      : increase + drop;
+
+  return {
+    _id: row._id?.toString?.() || dateIso,
+    dateIso,
+    dateStr: row.dateStr || dateIso,
+    savedAt: row.savedAt || null,
+    units: Number(row.units) || 0,
+    pcUp: Number(row.pcUp) || 0,
+    pcDown: Number(row.pcDown) || 0,
+    prUp: Number(row.prUp) || 0,
+    prDown: Number(row.prDown) || 0,
+    issues: Number(row.issues) || 0,
+    blocked: Number(row.blocked) || 0,
+    increase,
+    drop,
+    net,
+    source: "legacy",
+  };
+}
+
+/**
+ * Merge record-derived summaries with legacy DailySummaryLog rows.
+ * When the same dateIso exists in both, prefer the newer record-derived summary.
+ */
+export function mergeDashboardSummaries(derived = [], legacy = []) {
+  const byDate = new Map();
+
+  for (const row of legacy) {
+    const normalized = normalizeLegacySummary(row);
+    if (!normalized) continue;
+    byDate.set(normalized.dateIso, normalized);
+  }
+
+  for (const row of derived) {
+    if (!row?.dateIso) continue;
+    byDate.set(row.dateIso, {
+      ...row,
+      source: "records",
+    });
+  }
+
+  return Array.from(byDate.values()).sort((a, b) =>
+    a.dateIso.localeCompare(b.dateIso),
+  );
+}
+
 export const METRIC_OPTIONS = [
   { key: "units", label: "Total Units" },
   { key: "pcUp", label: "Price Change (Up)" },

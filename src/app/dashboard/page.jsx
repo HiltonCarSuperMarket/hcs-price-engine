@@ -55,8 +55,8 @@ function KpiCard({ label, value, sub, variant = "default" }) {
   );
 }
 
-function MetricLink({ dateIso, dateStr, view, children, className = "" }) {
-  if (!dateIso) {
+function MetricLink({ dateIso, dateStr, view, children, className = "", enabled = true }) {
+  if (!dateIso || !enabled) {
     return <span className={className}>{children}</span>;
   }
 
@@ -668,13 +668,20 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tableLogs.map((row) => (
+                    {tableLogs.map((row) => {
+                      const canOpenRecords = row.source !== "legacy";
+                      return (
                       <tr
                         key={row.dateIso}
                         className="border-b border-white/5 hover:bg-white/[0.02]"
                       >
                         <td className="px-4 py-3 font-semibold">
                           {row.dateStr}
+                          {row.source === "legacy" ? (
+                            <span className="ml-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                              History
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3 text-slate-400 text-xs">
                           {row.savedAt
@@ -686,6 +693,7 @@ export default function DashboardPage() {
                             dateIso={row.dateIso}
                             dateStr={row.dateStr}
                             view="units"
+                            enabled={canOpenRecords}
                           >
                             {row.units}
                           </MetricLink>
@@ -695,6 +703,7 @@ export default function DashboardPage() {
                             dateIso={row.dateIso}
                             dateStr={row.dateStr}
                             view="pc_up"
+                            enabled={canOpenRecords}
                           >
                             {row.pcUp}
                           </MetricLink>
@@ -704,6 +713,7 @@ export default function DashboardPage() {
                             dateIso={row.dateIso}
                             dateStr={row.dateStr}
                             view="pc_down"
+                            enabled={canOpenRecords}
                           >
                             {row.pcDown}
                           </MetricLink>
@@ -713,6 +723,7 @@ export default function DashboardPage() {
                             dateIso={row.dateIso}
                             dateStr={row.dateStr}
                             view="pr_down"
+                            enabled={canOpenRecords}
                           >
                             {row.prDown}
                           </MetricLink>
@@ -722,6 +733,7 @@ export default function DashboardPage() {
                             dateIso={row.dateIso}
                             dateStr={row.dateStr}
                             view="issues"
+                            enabled={canOpenRecords}
                           >
                             {row.issues}
                           </MetricLink>
@@ -732,6 +744,7 @@ export default function DashboardPage() {
                             dateStr={row.dateStr}
                             view="blocked"
                             className="text-orange-400"
+                            enabled={canOpenRecords}
                           >
                             {row.blocked || 0}
                           </MetricLink>
@@ -742,6 +755,7 @@ export default function DashboardPage() {
                             dateStr={row.dateStr}
                             view="drop"
                             className="text-red-400 font-semibold"
+                            enabled={canOpenRecords}
                           >
                             {formatCurrency(row.drop, true)}
                           </MetricLink>
@@ -752,6 +766,7 @@ export default function DashboardPage() {
                             dateStr={row.dateStr}
                             view="increase"
                             className="text-emerald-400 font-semibold"
+                            enabled={canOpenRecords}
                           >
                             {formatCurrency(row.increase, true)}
                           </MetricLink>
@@ -764,6 +779,7 @@ export default function DashboardPage() {
                             dateStr={row.dateStr}
                             view="net"
                             className={`font-semibold ${row.net >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                            enabled={canOpenRecords}
                           >
                             {formatCurrency(row.net, true)}
                           </MetricLink>
@@ -779,7 +795,8 @@ export default function DashboardPage() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -1,9 +1,10 @@
 import connectDB from "@/lib/mongodb";
-import { ProcessLogRecord } from "@/lib/models";
+import { DailySummaryLog, ProcessLogRecord } from "@/lib/models";
 import {
   buildLogRecordsFromResults,
   deriveDailySummariesFromRecords,
   formatDateStr,
+  mergeDashboardSummaries,
   toDateIso,
 } from "@/lib/logUtils";
 import { requireAuth } from "@/lib/require-auth";
@@ -65,11 +66,13 @@ export async function GET(request) {
       });
     }
 
-    const records = await ProcessLogRecord.find(filter)
-      .sort({ dateIso: 1, savedAt: 1 })
-      .lean();
+    const [records, legacySummaries] = await Promise.all([
+      ProcessLogRecord.find(filter).sort({ dateIso: 1, savedAt: 1 }).lean(),
+      DailySummaryLog.find(filter).sort({ dateIso: 1 }).lean(),
+    ]);
 
-    const summaries = deriveDailySummariesFromRecords(records);
+    const derived = deriveDailySummariesFromRecords(records);
+    const summaries = mergeDashboardSummaries(derived, legacySummaries);
     return Response.json({ success: true, data: summaries });
   } catch (error) {
     console.error("Failed to fetch logs:", error);
@@ -99,9 +102,15 @@ export async function DELETE(request) {
     }
 
     const targetDate = dateIso || id;
-    const result = await ProcessLogRecord.deleteMany({ dateIso: targetDate });
+    const [recordResult, legacyResult] = await Promise.all([
+      ProcessLogRecord.deleteMany({ dateIso: targetDate }),
+      DailySummaryLog.deleteOne({ dateIso: targetDate }),
+    ]);
 
-    if (result.deletedCount === 0) {
+    const deletedCount =
+      (recordResult.deletedCount || 0) + (legacyResult.deletedCount || 0);
+
+    if (deletedCount === 0) {
       return Response.json(
         { success: false, error: "Log not found" },
         { status: 404 },
@@ -110,7 +119,7 @@ export async function DELETE(request) {
 
     return Response.json({
       success: true,
-      deletedCount: result.deletedCount,
+      deletedCount,
     });
   } catch (error) {
     console.error("Failed to delete log:", error);
