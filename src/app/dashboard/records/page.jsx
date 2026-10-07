@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Download } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/lib/logUtils";
 import { toastUtils } from "@/lib/utils";
 
@@ -234,6 +234,7 @@ function RecordsContent() {
                         ? ["Blocked New", "Blocked Amt"]
                         : []),
                       "Reason",
+                      "Stock",
                     ].map((h) => (
                       <th
                         key={h}
@@ -336,6 +337,21 @@ function RecordsContent() {
                         )}
                         <td className="px-3 py-2.5 text-slate-400 max-w-xs break-words">
                           {r.reason || "—"}
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-center">
+                          {r.detailsUrl ? (
+                            <a
+                              href={r.detailsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-medium text-[#00dbcc] hover:underline"
+                            >
+                              View
+                              <ExternalLink className="size-3" />
+                            </a>
+                          ) : (
+                            <span className="text-slate-500">—</span>
+                          )}
                         </td>
                       </tr>
                     );
