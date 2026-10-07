@@ -8,6 +8,7 @@ import {
   toDateIso,
 } from "@/lib/logUtils";
 import { requireAuth } from "@/lib/require-auth";
+import { attachStockDetailsUrls } from "@/lib/stockDetailsUrl";
 
 export async function GET(request) {
   try {
@@ -54,10 +55,11 @@ export async function GET(request) {
       const records = await ProcessLogRecord.find(filter)
         .sort({ category: 1, stock_id: 1 })
         .lean();
+      const withStock = await attachStockDetailsUrls(records);
 
       return Response.json({
         success: true,
-        data: records,
+        data: withStock,
         meta: {
           dateIso: dateIso || null,
           view,
