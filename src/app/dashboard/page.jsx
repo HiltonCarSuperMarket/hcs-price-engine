@@ -103,6 +103,7 @@ function getCurrentMonthRange() {
 export default function DashboardPage() {
   const initialMonth = useMemo(() => getCurrentMonthRange(), []);
   const [logs, setLogs] = useState([]);
+  const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState(initialMonth.start);
   const [endDate, setEndDate] = useState(initialMonth.end);
@@ -114,14 +115,18 @@ export default function DashboardPage() {
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     try {
       const res = await fetch("/api/logs");
       const json = await res.json();
       if (json.success) {
         setLogs(json.data);
+      } else {
+        setLoadError(json.error || "Could not load logs.");
       }
     } catch (err) {
       console.error("Failed to load logs:", err);
+      setLoadError("Could not load logs.");
     } finally {
       setLoading(false);
     }
@@ -392,6 +397,8 @@ export default function DashboardPage() {
           <div className="text-center py-20 text-slate-400">
             Loading dashboard...
           </div>
+        ) : loadError ? (
+          <div className="text-center py-20 text-red-300">{loadError}</div>
         ) : filteredLogs.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
             No log data for the selected range. Process a file and click

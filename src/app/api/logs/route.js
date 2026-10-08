@@ -69,8 +69,12 @@ export async function GET(request) {
     }
 
     const [records, legacySummaries] = await Promise.all([
-      ProcessLogRecord.find(filter).sort({ dateIso: 1, savedAt: 1 }).lean(),
-      DailySummaryLog.find(filter).sort({ dateIso: 1 }).lean(),
+      ProcessLogRecord.find(filter)
+        .select("dateIso dateStr savedAt category amount_change")
+        .sort({ dateIso: 1, savedAt: 1 })
+        .allowDiskUse(true)
+        .lean(),
+      DailySummaryLog.find(filter).sort({ dateIso: 1 }).allowDiskUse(true).lean(),
     ]);
 
     const derived = deriveDailySummariesFromRecords(records);
